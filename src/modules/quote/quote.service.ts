@@ -28,6 +28,7 @@ export class SmsQuoteService {
     public async httpBaseSmsQuoteEnums(): Promise<SmsQuoteDto.SmsQuoteEnumsResponseDto> {
         return {
             changeStatusOptions: Schema.TbSmsQuoteDraftChangeStatusDefinition.options,
+            draftStatusOptions: Schema.TbSmsQuoteDraftStatusDefinition.options,
             sourceOptions: Schema.TbSmsQuoteDraftSourceDefinition.options,
             statusOptions: Schema.TbSmsQuoteStatusDefinition.options
         }
@@ -134,6 +135,7 @@ export class SmsQuoteService {
                     effectiveTime: existing?.effectiveTime,
                     expiryTime: existing?.expiryTime,
                     source: existing ? Schema.TbSmsQuoteDraftSource.EXISTING : Schema.TbSmsQuoteDraftSource.ADDITION,
+                    status: Schema.TbSmsQuoteDraftStatus.ENABLE,
                     remark: existing?.remark,
                     createBy: principal.uid,
                     modifyBy: principal.uid
@@ -150,7 +152,10 @@ export class SmsQuoteService {
     ): Promise<PageResult<SmsQuoteDto.SmsQuoteDraftListItemResponseDto>> {
         return this.database.builder(this.draftRepository, async qb => {
             qb.where('t.draftBatchId = :draftBatchId', { draftBatchId: body.draftBatchId })
-                .orderBy('t.countryKeyId', 'ASC')
+            if (isNotEmpty(body.status)) {
+                qb.andWhere('t.status = :status', { status: body.status })
+            }
+            qb.orderBy('t.countryKeyId', 'ASC')
                 .skip((body.page - 1) * body.size)
                 .take(body.size)
             const [list, total] = await qb.getManyAndCount()
@@ -163,7 +168,7 @@ export class SmsQuoteService {
                     const changeStatus = existing
                         ? Schema.TbSmsQuoteDraftChangeStatus.UNCHANGED
                         : Schema.TbSmsQuoteDraftChangeStatus.ADDITION
-                    return { ...item, upStatus: changeStatus, downStatus: changeStatus }
+                    return { ...this.smsQuoteUtilsService.fetchPriceNode(item), upStatus: changeStatus, downStatus: changeStatus }
                 })
             }
         })
@@ -190,9 +195,19 @@ export class SmsQuoteService {
         })
     }
 
-    /**批量删除短信报价草稿。*/
+    /**批量变更短信报价草稿状态：删除为软删除，可再恢复为正常。*/
+    public async httpBaseSmsUpdateQuoteDraftStatus(
+        principal: AuthPrincipal,
+        body: SmsQuoteDto.UpdateSmsQuoteDraftStatusDto
+    ): Promise<AffectedResponseDataDto> {
+        const keyIds = [...new Set(body.keyIds)]
+        const result = await this.draftRepository.update({ keyId: In(keyIds) }, { status: body.status, modifyBy: principal.uid })
+        return { affected: result.affected ?? 0 }
+    }
+
+    /**批量移除短信报价草稿。*/
     public async httpBaseSmsDeleteQuoteDraft(body: SmsQuoteDto.DeleteSmsQuoteDraftDto): Promise<AffectedResponseDataDto> {
-        // 草稿只是发布前的临时数据，删除时直接物理删除，不再保留草稿状态。
+        // 移除是物理删除，删除后不可恢复；可恢复的删除走 draft/status/update。
         const result = await this.draftRepository.delete({ keyId: In([...new Set(body.keyIds)]) })
         return { affected: result.affected ?? 0 }
     }

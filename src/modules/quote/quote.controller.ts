@@ -51,8 +51,20 @@ export class SmsQuoteController {
         return this.smsQuoteService.httpBaseSmsUpdateQuoteDraft(principal, body)
     }
 
+    @ApiServiceDecorator(Post('draft/status/update'), {
+        operation: { summary: '批量变更短信报价草稿状态（删除/恢复）' },
+        request: { source: 'body', type: SmsQuoteDto.UpdateSmsQuoteDraftStatusDto },
+        response: { type: AffectedResponseDataDto, description: '变更结果' }
+    })
+    public async httpBaseSmsUpdateQuoteDraftStatus(
+        @CurrentPrincipal() principal: AuthPrincipal,
+        @Body() body: SmsQuoteDto.UpdateSmsQuoteDraftStatusDto
+    ): Promise<AffectedResponseDataDto> {
+        return this.smsQuoteService.httpBaseSmsUpdateQuoteDraftStatus(principal, body)
+    }
+
     @ApiServiceDecorator(Post('draft/delete'), {
-        operation: { summary: '批量删除短信报价草稿' },
+        operation: { summary: '批量移除短信报价草稿（物理删除）' },
         request: { source: 'body', type: SmsQuoteDto.DeleteSmsQuoteDraftDto },
         response: { type: AffectedResponseDataDto, description: '删除结果' }
     })

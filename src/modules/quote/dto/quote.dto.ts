@@ -1,4 +1,4 @@
-import { ApiProperty, IntersectionType, PartialType, PickType } from '@nestjs/swagger'
+import { ApiProperty, IntersectionType, OmitType, PartialType, PickType } from '@nestjs/swagger'
 import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsEnum, IsInt, IsNotEmpty } from 'class-validator'
 import { IsOptional, IsString, IsUUID, MaxLength, Matches, Min } from 'class-validator'
 import { EnumsResponseDto, PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
@@ -9,6 +9,7 @@ import * as Schema from '@wlisfes/chat-web-base-schema'
 /** 获取短信报价静态枚举响应：GET /quote/enums。 */
 export class SmsQuoteEnumsResponseDto extends EnumsResponseDto({
     changeStatusOptions: { description: '报价变更状态选项', example: Schema.TbSmsQuoteDraftChangeStatusDefinition.options },
+    draftStatusOptions: { description: '报价草稿状态选项', example: Schema.TbSmsQuoteDraftStatusDefinition.options },
     sourceOptions: { description: '报价来源选项', example: Schema.TbSmsQuoteDraftSourceDefinition.options },
     statusOptions: { description: '短信报价状态选项', example: Schema.TbSmsQuoteStatusDefinition.options }
 }) {}
@@ -42,6 +43,16 @@ export class ListSmsQuoteDraftDto extends PageDto {
     @ApiProperty({ description: '草稿批次ID', format: 'uuid', example: 'a56b8b36-1d86-4cf2-9c98-63f4134c83d0' })
     @IsUUID('4', { message: '草稿批次ID格式错误' })
     draftBatchId: string
+
+    @ApiProperty({
+        description: `${Schema.TbSmsQuoteDraftStatusDefinition.comment}；不传查询全部`,
+        enum: Schema.TbSmsQuoteDraftStatus,
+        enumName: 'TbSmsQuoteDraftStatus',
+        required: false
+    })
+    @IsOptional()
+    @IsEnum(Schema.TbSmsQuoteDraftStatus, { message: '报价草稿状态格式错误' })
+    status?: Schema.TbSmsQuoteDraftStatus
 }
 
 /** 更新短信报价草稿入参：POST /quote/draft/update。 */
@@ -93,6 +104,12 @@ export class DeleteSmsQuoteDraftDto {
     keyIds: number[]
 }
 
+/** 批量变更短信报价草稿状态入参：POST /quote/draft/status/update（删除后可恢复）。 */
+export class UpdateSmsQuoteDraftStatusDto extends IntersectionType(
+    DeleteSmsQuoteDraftDto,
+    PickType(Schema.TbSmsQuoteDraftDto, ['status'])
+) {}
+
 /** 入参：POST /quote/preview、POST /quote/publish（预览短信报价草稿批次；发布短信报价草稿批次）。 */
 export class SmsQuoteDraftBatchDto {
     @ApiProperty({ description: '草稿批次ID', format: 'uuid', example: 'a56b8b36-1d86-4cf2-9c98-63f4134c83d0' })
@@ -138,7 +155,24 @@ export class InitSmsQuoteDraftResponseDto {
 }
 
 /** SmsQuoteDraftPageResponseDto.list 字段结构；分页查询短信报价草稿响应：POST /quote/draft/column。 */
-export class SmsQuoteDraftListItemResponseDto extends Schema.TbSmsQuoteDraftDto {
+export class SmsQuoteDraftListItemResponseDto extends OmitType(Schema.TbSmsQuoteDraftDto, [
+    'upUsd',
+    'downUsd',
+    'upLocal',
+    'downLocal'
+] as const) {
+    @ApiProperty({ description: '上行短信售价USD（已换算为实际金额）', example: 0.03 })
+    upUsd: number
+
+    @ApiProperty({ description: '下行短信售价USD（已换算为实际金额）', example: 0.05 })
+    downUsd: number
+
+    @ApiProperty({ description: '上行短信本币售价（已换算为实际金额）', example: 0.03 })
+    upLocal: number
+
+    @ApiProperty({ description: '下行短信本币售价（已换算为实际金额）', example: 0.05 })
+    downLocal: number
+
     @ApiProperty({
         description: '上行价格变更状态',
         enum: Schema.TbSmsQuoteDraftChangeStatus,
