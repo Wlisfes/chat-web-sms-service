@@ -78,8 +78,13 @@ done
 
 compose config >/dev/null
 
-# 空模板还没有短信库和共享 Schema SQL，部署时不执行数据库迁移。
-# 出现 chat-web-sms-mysql 后，再在切换容器前接入 apply-schema-bootstrap。
+# 先以临时的单库账号执行共享包提供的增量 SQL，确保新镜像启动时实体结构已经就绪。
+# Nacos 数据库账号若已是 SMS 单库账号则直接执行；否则创建仅能访问 SMS 数据库的临时账号，迁移结束后立即回收。
+if ! docker run --rm --network "$network" --env-file .env --entrypoint node "$IMAGE" dist/cli/apply-schema-bootstrap.js; then
+    echo "SMS 数据库 Schema 更新失败，保留当前运行版本。" >&2
+    exit 1
+fi
+
 deployment_started=1
 if ! compose up -d --no-deps "$SERVICE"; then
     rollback

@@ -205,10 +205,12 @@
 
 ### 当前工程边界
 
-- 本仓库是按 `chat-web-skyline-service` 工程基准初始化的空项目，只保留欢迎页、`/health/live`、Nacos 配置与服务注册、网关身份上下文校验。
-- 当前没有短信业务模块、数据库和 Feign。共享包尚未提供 `chat-web-sms-mysql`，不得为对齐空建 `src/database/`、`src/feign/` 或 `src/health/`。
+- 本仓库按 `chat-web-skyline-service` 工程基准初始化，负责客户短信应用（`src/modules/app`）和短信报价（`src/modules/quote`），数据库为 `chat-web-sms`，实体与 SQL 来自共享包 `chat-web-sms-mysql`。
+- 客户与客户配置归属 CRM，只能通过 `FeignClientCrmManager` 查询；基础价格与汇率归属 Finance，通过 `FeignClientFinanceManager` 查询。服务间调用统一使用 `resolveFeignServiceAuthorization`，不得转发终端用户 Token，也不得直连 CRM 或 Finance 数据库。
+- `src/feign/` 继承共享 `FeignClientSmsManager`，通过 `/feign/sms` 为 CRM 等内部服务提供短信数据（当前为 `httpBaseSmsAppCountResolver`）。当前没有 `src/health/`，不得为对齐空建。
 - 入口认证由网关完成，本服务只通过共享 `GatewayPrincipalModule` 校验身份上下文。`/` 和 `/health/live` 使用 `@Public()`，不返回业务数据。
-- 对外访问预留 Gateway `/api/sms/**`。网关路由尚未登记，本仓库不得擅自修改 Gateway。
+- 对外访问经 Gateway `/api/sms/**`，服务间访问经 Gateway `/feign/sms/**`；本仓库不得擅自修改 Gateway。
+- 短信应用密钥使用 Nacos `server.secret` 派生 AES-256-GCM 密钥加密，必须与历史数据加密时的值保持一致，否则旧密文无法解密。
 - 监听端口固定为 `5060`。已占用端口：Gateway `5000`、Task `5010`、CRM `5020`、Finance `5030`、Skyline `5040`、Auth `5050`。
 - 新功能继续在 `developer` 分支开发；普通功能完成后只提交并推送 `developer`，不得立即合并 `main` 或触发流水线。
 - 远程仓库只保留 `main`、`developer` 两个长期分支；临时需求分支必须先合并到 `developer`，发布时同步合并到 `main`，合并并验证通过后立即删除远程和本地临时分支。
@@ -216,13 +218,13 @@
 ### HTTP Controller 与 Service 编码基准
 
 - Controller 必须保持为薄协议层：只声明路由、权限、Swagger/Apifox 元数据，接收 `query`、`body` 或必要请求/响应上下文，并将参数原样交给同名 Service 方法。
-- 当前只有欢迎信息和存活检查，方法名分别为 `httpBaseSmsWelcome`、`httpBaseSmsLiveness`。Controller 与 Service 方法名必须完全一致，Controller 直接返回同名 Service 调用结果。
+- 欢迎信息和存活检查方法名分别为 `httpBaseSmsWelcome`、`httpBaseSmsLiveness`；业务方法统一使用 `httpBaseSms<Action><Resource>` 风格。Controller 与 Service 方法名必须完全一致，Controller 直接返回同名 Service 调用结果。
 - 欢迎信息返回纯文本并关闭统一响应外壳；存活检查返回 `{ status: 'UP' }` 并关闭统一响应外壳。不得为这两项制造 Utils Service。
 - 重构不得改变 `/`、`/health/live` 路由、HTTP 状态、首页纯文本响应、健康响应结构和 Nacos 注册行为。
 
 ### 部署边界
 
 - 只部署到当前主机 `chat-home-server`，使用 `chat-home-server` Runner 标签和 `production-home` Environment；容器继续使用非 root 用户、`chat-web-service` Compose 项目和 `chat-web-infrastructure` 外部网络。
-- 当前没有 Schema SQL，部署不得执行数据库迁移。出现短信库后再补 `src/cli/apply-schema*.ts` 和 Nacos 配置校验。
+- 部署前由 `dist/cli/apply-schema-bootstrap.js` 以临时单库账号执行共享包 `chat-web-sms-mysql` 的增量 SQL；迁移记录表为 `tb_sms_schema_migration`。TypeORM 保持 `synchronize: false`。
 - 修改 Docker、Actions、Runner、端口或健康检查时，必须同步更新 `deploy/CHANGELOG.md` 与 `deploy/RUNBOOK.md`。
 - 获得用户明确发布指令前，不得向 `main` 推送、合并 PR 或运行部署流水线。

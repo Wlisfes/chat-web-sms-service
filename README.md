@@ -1,6 +1,6 @@
 # Chat Web SMS Service
 
-基于 `chat-web-skyline-service` 工程基准初始化的 NestJS 11 空项目，用于后续开发 SMS 服务。
+基于 `chat-web-skyline-service` 工程基准的 NestJS 11 SMS 服务，负责客户短信应用与短信报价。
 
 ## 环境
 
@@ -24,18 +24,20 @@ yarn dev
 - `GET /` 返回 `Hello World!`
 - `GET /health/live` 返回进程存活状态
 
-对外访问预留 Gateway：
+对外访问经 Gateway `/api/sms/**`：
 
-- `GET /api/sms/`
-- `GET /api/sms/health/live`
+- `POST /api/sms/app/*`：客户短信应用
+- `POST /api/sms/quote/*`：短信报价草稿与正式报价
 
-该路由尚未登记到 Gateway，本仓库不修改 Gateway。
+服务间访问经 Gateway `/feign/sms/**`，由共享 `FeignClientSmsManager` 定义契约。
 
 服务通过 `@wlisfes/chat-web-base-schema` 的 `NacosModule` 读取 `chat-web-sms-service-development.yaml` 并注册实例。
 
 ## 当前边界
 
-空模板只保留欢迎页、存活检查、Nacos 和网关身份上下文。共享包还没有 `chat-web-sms-mysql`，因此没有 `src/database/`、`src/feign/` 和 Schema 迁移命令。短信业务出现后再按 Skyline 的模块目录添加。
+- 数据库 `chat-web-sms`，Nacos 节点 `database.chat-web-sms`；实体与增量 SQL 来自 `@wlisfes/chat-web-base-schema/chat-web-sms-mysql`。
+- 客户与客户配置通过 CRM Feign 查询，基础价格与汇率通过 Finance Feign 查询，使用 Nacos `gateway.feign.service_token` 服务凭据。
+- 短信应用密钥依赖 Nacos `server.secret`，必须与历史密文的加密值一致。
 
 ## 共享基础包
 
@@ -45,7 +47,7 @@ yarn dev
 - `class-transformer`、`express`
 - `js-yaml`、`mysql2`、`redis`、`typeorm`
 
-这些依赖用于保证 Base Schema 的导出入口可以正常解析。当前服务不连接短信库，TypeORM 也不会在启动时改表。`@wlisfes` 私有包通过仓库 `.npmrc` 指向 GitHub Packages，`yarn run install` 和 `yarn run base:update` 会依次复用 `NODE_AUTH_TOKEN`、`gh auth token` 或用户级 `~/.npmrc` 中的 GitHub Packages Token。
+这些依赖用于保证 Base Schema 的导出入口可以正常解析。TypeORM 保持 `synchronize: false`，启动时不会改表；表结构由部署前的 Schema 增量 SQL 管理。`@wlisfes` 私有包通过仓库 `.npmrc` 指向 GitHub Packages，`yarn run install` 和 `yarn run base:update` 会依次复用 `NODE_AUTH_TOKEN`、`gh auth token` 或用户级 `~/.npmrc` 中的 GitHub Packages Token。
 
 ## 验证
 
