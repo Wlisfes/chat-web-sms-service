@@ -1,4 +1,4 @@
-import { Body, Post } from '@nestjs/common'
+import { Body, Get, Post } from '@nestjs/common'
 import { AffectedResponseDataDto, ApiServiceDecorator, ApifoxController } from '@wlisfes/chat-web-base-schema/decorator'
 import { type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { CurrentPrincipal } from '@wlisfes/chat-web-base-schema/auth'
@@ -9,6 +9,14 @@ import * as SmsQuoteDto from '@/modules/quote/dto/quote.dto'
 @ApifoxController('短信服务-短信报价', 'quote', { bearerAuth: true })
 export class SmsQuoteController {
     constructor(private readonly smsQuoteService: SmsQuoteService) {}
+
+    @ApiServiceDecorator(Get('enums'), {
+        operation: { summary: '获取短信报价静态枚举' },
+        response: { type: SmsQuoteDto.SmsQuoteEnumsResponseDto, description: '短信报价静态枚举' }
+    })
+    public async httpBaseSmsQuoteEnums(): Promise<SmsQuoteDto.SmsQuoteEnumsResponseDto> {
+        return this.smsQuoteService.httpBaseSmsQuoteEnums()
+    }
 
     @ApiServiceDecorator(Post('draft/init'), {
         operation: { summary: '初始化短信报价草稿批次' },

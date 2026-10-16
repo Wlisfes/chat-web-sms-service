@@ -24,6 +24,15 @@ export class SmsQuoteService {
         private readonly configService: ConfigService
     ) {}
 
+    /**短信报价静态枚举。*/
+    public async httpBaseSmsQuoteEnums(): Promise<SmsQuoteDto.SmsQuoteEnumsResponseDto> {
+        return {
+            changeStatusOptions: Schema.TbSmsQuoteDraftChangeStatusDefinition.options,
+            sourceOptions: Schema.TbSmsQuoteDraftSourceDefinition.options,
+            statusOptions: Schema.TbSmsQuoteStatusDefinition.options
+        }
+    }
+
     /**按 Feign 单次上限分批查询短信基础价格，并按入参顺序返回，缺失时抛错。*/
     private async findFrozenSmsRequired(serviceAuthorization: string, countryKeyIds: number[]) {
         const uniqueKeyIds = [...new Set(countryKeyIds)]
@@ -149,11 +158,13 @@ export class SmsQuoteService {
                 page: body.page,
                 size: body.size,
                 total,
-                list: list.map(item => ({
-                    ...item,
-                    upStatus: item.source === Schema.TbSmsQuoteDraftSource.EXISTING ? 'unchanged' : 'addition',
-                    downStatus: item.source === Schema.TbSmsQuoteDraftSource.EXISTING ? 'unchanged' : 'addition'
-                })) as SmsQuoteDto.SmsQuoteDraftListItemResponseDto[]
+                list: list.map(item => {
+                    const existing = item.source === Schema.TbSmsQuoteDraftSource.EXISTING
+                    const changeStatus = existing
+                        ? Schema.TbSmsQuoteDraftChangeStatus.UNCHANGED
+                        : Schema.TbSmsQuoteDraftChangeStatus.ADDITION
+                    return { ...item, upStatus: changeStatus, downStatus: changeStatus }
+                })
             }
         })
     }
