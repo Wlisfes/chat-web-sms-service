@@ -99,18 +99,12 @@ export class SmsQuoteUtilsService {
                     } else if (status === Schema.TbSmsQuoteStatus.EFFECTIVE) {
                         scope.orWhere(
                             '(t.status <> :deleted AND t.effectiveTime <= :now AND (t.expiryTime IS NULL OR t.expiryTime > :now))',
-                            {
-                                deleted,
-                                now
-                            }
+                            { deleted, now }
                         )
                     } else {
                         scope.orWhere(
                             '(t.status <> :deleted AND t.effectiveTime > :now AND (t.expiryTime IS NULL OR t.expiryTime > :now))',
-                            {
-                                deleted,
-                                now
-                            }
+                            { deleted, now }
                         )
                     }
                 }

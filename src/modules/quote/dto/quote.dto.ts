@@ -1,10 +1,17 @@
 import { ApiProperty, IntersectionType, PartialType, PickType } from '@nestjs/swagger'
 import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsEnum, IsInt, IsNotEmpty } from 'class-validator'
 import { IsOptional, IsString, IsUUID, MaxLength, Matches, Min } from 'class-validator'
-import { PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
+import { EnumsResponseDto, PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 import { Type } from 'class-transformer'
 import * as Schema from '@wlisfes/chat-web-base-schema'
+
+/** 获取短信报价静态枚举响应：GET /quote/enums。 */
+export class SmsQuoteEnumsResponseDto extends EnumsResponseDto({
+    changeStatusOptions: { description: '报价变更状态选项', example: Schema.TbSmsQuoteDraftChangeStatusDefinition.options },
+    sourceOptions: { description: '报价来源选项', example: Schema.TbSmsQuoteDraftSourceDefinition.options },
+    statusOptions: { description: '短信报价状态选项', example: Schema.TbSmsQuoteStatusDefinition.options }
+}) {}
 
 /** 初始化短信报价草稿批次入参：POST /quote/draft/init。 */
 export class InitSmsQuoteDraftDto {
@@ -132,11 +139,21 @@ export class InitSmsQuoteDraftResponseDto {
 
 /** SmsQuoteDraftPageResponseDto.list 字段结构；分页查询短信报价草稿响应：POST /quote/draft/column。 */
 export class SmsQuoteDraftListItemResponseDto extends Schema.TbSmsQuoteDraftDto {
-    @ApiProperty({ description: '上行价格变更状态', enum: ['unchanged', 'addition'], example: 'addition' })
-    upStatus: 'unchanged' | 'addition'
+    @ApiProperty({
+        description: '上行价格变更状态',
+        enum: Schema.TbSmsQuoteDraftChangeStatus,
+        enumName: 'TbSmsQuoteDraftChangeStatus',
+        example: Schema.TbSmsQuoteDraftChangeStatus.ADDITION
+    })
+    upStatus: Schema.TbSmsQuoteDraftChangeStatus
 
-    @ApiProperty({ description: '下行价格变更状态', enum: ['unchanged', 'addition'], example: 'addition' })
-    downStatus: 'unchanged' | 'addition'
+    @ApiProperty({
+        description: '下行价格变更状态',
+        enum: Schema.TbSmsQuoteDraftChangeStatus,
+        enumName: 'TbSmsQuoteDraftChangeStatus',
+        example: Schema.TbSmsQuoteDraftChangeStatus.ADDITION
+    })
+    downStatus: Schema.TbSmsQuoteDraftChangeStatus
 }
 
 /** 分页查询短信报价草稿响应：POST /quote/draft/column。 */

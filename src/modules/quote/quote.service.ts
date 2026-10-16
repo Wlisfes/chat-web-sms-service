@@ -1,16 +1,16 @@
-import { randomUUID } from 'node:crypto'
-import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
-import type { AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
-import { AffectedResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { FeignClientCrmManager, FeignClientFinanceManager, resolveFeignServiceAuthorization } from '@wlisfes/chat-web-base-schema/feign'
-import { SmsAppUtilsService } from '@/modules/app/app.utils.service'
+import { InjectRepository, DataBaseService, In, Repository } from '@wlisfes/chat-web-base-schema/database'
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
+import { AffectedResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
+import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 import { SmsQuoteUtilsService } from '@/modules/quote/quote.utils.service'
+import { type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
+import { SmsAppUtilsService } from '@/modules/app/app.utils.service'
+import { ConfigService } from '@nestjs/config'
+import { randomUUID } from 'node:crypto'
 import * as SmsQuoteDto from '@/modules/quote/dto/quote.dto'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
-import { InjectRepository, DataBaseService, In, Repository } from '@wlisfes/chat-web-base-schema/database'
-import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class SmsQuoteService {
     constructor(
@@ -23,6 +23,15 @@ export class SmsQuoteService {
         private readonly financeClient: FeignClientFinanceManager,
         private readonly configService: ConfigService
     ) {}
+
+    /**短信报价静态枚举。*/
+    public async httpBaseSmsQuoteEnums(): Promise<SmsQuoteDto.SmsQuoteEnumsResponseDto> {
+        return {
+            changeStatusOptions: Schema.TbSmsQuoteDraftChangeStatusDefinition.options,
+            sourceOptions: Schema.TbSmsQuoteDraftSourceDefinition.options,
+            statusOptions: Schema.TbSmsQuoteStatusDefinition.options
+        }
+    }
 
     /**按 Feign 单次上限分批查询短信基础价格，并按入参顺序返回，缺失时抛错。*/
     private async findFrozenSmsRequired(serviceAuthorization: string, countryKeyIds: number[]) {
@@ -149,11 +158,13 @@ export class SmsQuoteService {
                 page: body.page,
                 size: body.size,
                 total,
-                list: list.map(item => ({
-                    ...item,
-                    upStatus: item.source === Schema.TbSmsQuoteDraftSource.EXISTING ? 'unchanged' : 'addition',
-                    downStatus: item.source === Schema.TbSmsQuoteDraftSource.EXISTING ? 'unchanged' : 'addition'
-                })) as SmsQuoteDto.SmsQuoteDraftListItemResponseDto[]
+                list: list.map(item => {
+                    const existing = item.source === Schema.TbSmsQuoteDraftSource.EXISTING
+                    const changeStatus = existing
+                        ? Schema.TbSmsQuoteDraftChangeStatus.UNCHANGED
+                        : Schema.TbSmsQuoteDraftChangeStatus.ADDITION
+                    return { ...item, upStatus: changeStatus, downStatus: changeStatus }
+                })
             }
         })
     }
