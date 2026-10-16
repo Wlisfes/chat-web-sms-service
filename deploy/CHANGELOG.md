@@ -1,5 +1,11 @@
 # SMS 部署变更记录
 
+## 2026-10-16（短信业务迁入）
+
+- 承接原 CRM 的客户短信应用与短信报价，新增数据库 `chat-web-sms`（`tb_sms_app`、`tb_sms_quote_draft`、`tb_sms_quote`）。
+- `deploy.sh` 在切换容器前执行 `dist/cli/apply-schema-bootstrap.js`，迁移失败时保留当前运行版本。
+- Nacos 需补齐 `server.secret`（与 CRM 原值一致）。
+
 ## 2026-10-16
 
 - 按 Skyline 工程基准初始化空项目部署模板。
