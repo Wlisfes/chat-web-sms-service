@@ -42,12 +42,12 @@ export class SmsQuoteController {
     @ApiServiceDecorator(Post('draft/update'), {
         operation: { summary: '更新短信报价草稿' },
         request: { source: 'body', type: SmsQuoteDto.UpdateSmsQuoteDraftDto },
-        response: { type: Schema.TbSmsQuoteDraftDto, description: '更新后的报价草稿' }
+        response: { type: SmsQuoteDto.SmsQuoteDraftListItemResponseDto, description: '更新后的报价草稿（含原价、最新变更状态）' }
     })
     public async httpBaseSmsUpdateQuoteDraft(
         @CurrentPrincipal() principal: AuthPrincipal,
         @Body() body: SmsQuoteDto.UpdateSmsQuoteDraftDto
-    ): Promise<Schema.TbSmsQuoteDraftDto> {
+    ): Promise<SmsQuoteDto.SmsQuoteDraftListItemResponseDto> {
         return this.smsQuoteService.httpBaseSmsUpdateQuoteDraft(principal, body)
     }
 
@@ -70,15 +70,6 @@ export class SmsQuoteController {
     })
     public async httpBaseSmsDeleteQuoteDraft(@Body() body: SmsQuoteDto.DeleteSmsQuoteDraftDto): Promise<AffectedResponseDataDto> {
         return this.smsQuoteService.httpBaseSmsDeleteQuoteDraft(body)
-    }
-
-    @ApiServiceDecorator(Post('preview'), {
-        operation: { summary: '预览短信报价草稿批次' },
-        request: { source: 'body', type: SmsQuoteDto.SmsQuoteDraftBatchDto },
-        response: { type: SmsQuoteDto.SmsQuotePreviewResponseDto, description: '报价草稿批次预览' }
-    })
-    public async httpBaseSmsPreviewQuote(@Body() body: SmsQuoteDto.SmsQuoteDraftBatchDto): Promise<SmsQuoteDto.SmsQuotePreviewResponseDto> {
-        return this.smsQuoteService.httpBaseSmsPreviewQuote(body)
     }
 
     @ApiServiceDecorator(Post('publish'), {
