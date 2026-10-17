@@ -153,6 +153,18 @@ export class InitSmsQuoteDraftResponseDto {
     total: number
 }
 
+/** 客户摘要结构；用于正式报价 POST /quote/column 与报价草稿 POST /quote/draft/column 的 userOptions 字段。 */
+export class UserOptionResponseDto {
+    @ApiProperty({ description: '客户主键', example: 10241000 })
+    keyId: number
+
+    @ApiProperty({ description: '客户名称', example: '华东测试客户' })
+    name: string
+
+    @ApiProperty({ description: '客户别名', required: false, example: '华东客户' })
+    alias?: string
+}
+
 /** SmsQuoteDraftPageResponseDto.list 字段结构；分页查询短信报价草稿响应：POST /quote/draft/column。 */
 export class SmsQuoteDraftListItemResponseDto extends OmitType(Schema.TbSmsQuoteDraftDto, [
     'upUsd',
@@ -193,6 +205,13 @@ export class SmsQuoteDraftListItemResponseDto extends OmitType(Schema.TbSmsQuote
         example: Schema.TbSmsQuoteDraftChangeStatus.NEW
     })
     downStatus: Schema.TbSmsQuoteDraftChangeStatus
+
+    @ApiProperty({
+        description: '客户信息（CRM 客户摘要）；仅草稿分页列表返回，客户不存在时为空',
+        type: UserOptionResponseDto,
+        required: false
+    })
+    userOptions?: UserOptionResponseDto
 }
 
 /** 分页查询短信报价草稿响应：POST /quote/draft/column。 */
@@ -229,18 +248,6 @@ export class PublishSmsQuoteResponseDto {
 
     @ApiProperty({ description: '已发布报价数量', example: 3 })
     published: number
-}
-
-/** SmsQuoteListItemResponseDto.userOptions 字段结构；分页查询正式短信报价响应：POST /quote/column。 */
-export class UserOptionResponseDto {
-    @ApiProperty({ description: '客户主键', example: 10241000 })
-    keyId: number
-
-    @ApiProperty({ description: '客户名称', example: '华东测试客户' })
-    name: string
-
-    @ApiProperty({ description: '客户别名', required: false, example: '华东客户' })
-    alias?: string
 }
 
 /** SmsQuotePageResponseDto.list 字段结构；分页查询正式短信报价响应：POST /quote/column。 */

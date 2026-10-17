@@ -1,8 +1,8 @@
 import { FeignClientCrmManager, FeignClientFinanceManager, resolveFeignServiceAuthorization } from '@wlisfes/chat-web-base-schema/feign'
+import { PageResult, isNotEmpty, fetchZoomNumber, fetchUntiePagination } from '@wlisfes/chat-web-base-schema/utils'
 import { InjectRepository, DataBaseService, In, Repository } from '@wlisfes/chat-web-base-schema/database'
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
 import { AffectedResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
-import { PageResult, isNotEmpty, fetchZoomNumber } from '@wlisfes/chat-web-base-schema/utils'
 import { SmsQuoteUtilsService } from '@/modules/quote/quote.utils.service'
 import { type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { SmsAppUtilsService } from '@/modules/app/app.utils.service'
@@ -53,20 +53,22 @@ export class SmsQuoteService {
     }
 
     /**按 Feign 单次上限分批查询 CRM 客户摘要，缺失客户不阻断列表展示。*/
-    private async findCrmUsers(keyIds: number[]): Promise<Array<{ keyId: number; name: string; alias: string }>> {
+    private async findCrmUsers(keyIds: number[]) {
         const uniqueKeyIds = [...new Set(keyIds)]
         if (uniqueKeyIds.length === 0) {
-            return []
+            return { items: [], userOptions: new Map() }
         }
         const serviceAuthorization = resolveFeignServiceAuthorization(this.configService)
         const groups: number[][] = []
         for (let index = 0; index < uniqueKeyIds.length; index += 100) {
             groups.push(uniqueKeyIds.slice(index, index + 100))
         }
-        const results = await Promise.all(
+        return await Promise.all(
             groups.map(group => this.crmClient.httpBaseCrmColumnUserResolver(serviceAuthorization, { keyIds: group }))
-        )
-        return results.flat().map(user => ({ keyId: user.keyId, name: user.name, alias: user.alias }))
+        ).then(results => {
+            const items = results.flat().map(user => ({ keyId: user.keyId, name: user.name, alias: user.alias }))
+            return { items, userOptions: new Map(items.map(user => [user.keyId, user])) }
+        })
     }
 
     /**初始化短信报价草稿批次。*/
@@ -139,8 +141,17 @@ export class SmsQuoteService {
             }
             qb.orderBy('t.countryKeyId', 'ASC')
             return await qb.getManyAndCount().then(async ([list, total]) => {
-                // 变更状态实时对比现行报价：无现行报价为新增，价格相同为未变，否则为增长/降低。
-                return { page: body.page, size: body.size, total, list: await this.smsQuoteUtilsService.fetchDraftChangeList(list) }
+                // 变更状态实时对比现行报价：无现行报价为新增，价格相同为未变，否则为增长/降低；客户信息通过 CRM Feign 补充。
+                const [changeList, { userOptions }] = await Promise.all([
+                    this.smsQuoteUtilsService.fetchDraftChangeList(list),
+                    this.findCrmUsers(list.map(item => item.userKeyId))
+                ])
+                return {
+                    page: body.page,
+                    size: body.size,
+                    total,
+                    list: changeList.map(item => ({ ...item, userOptions: userOptions.get(item.userKeyId) }))
+                }
             })
         })
     }
@@ -313,6 +324,7 @@ export class SmsQuoteService {
     /**分页查询正式短信报价。*/
     public async httpBaseSmsColumnQuote(body: SmsQuoteDto.ListSmsQuoteDto): Promise<PageResult<SmsQuoteDto.SmsQuoteListItemResponseDto>> {
         const now = new Date()
+        const { page, size } = fetchUntiePagination(body)
         return this.database.builder(this.quoteRepository, async qb => {
             if (isNotEmpty(body.userKeyId)) {
                 qb.andWhere('t.userKeyId = :userKeyId', { userKeyId: body.userKeyId })
@@ -339,22 +351,22 @@ export class SmsQuoteService {
                 qb.andWhere('t.countryKeyId IN (:...countryKeyIds)', { countryKeyIds: body.countryKeyIds })
             }
             qb.orderBy('t.publishedTime', 'DESC')
-                .addOrderBy('t.keyId', 'DESC')
-                .skip((body.page - 1) * body.size)
-                .take(body.size)
-            const [quotes, total] = await qb.getManyAndCount()
-            const users = await this.findCrmUsers(quotes.map(quote => quote.userKeyId))
-            const userByKeyId = new Map(users.map(user => [user.keyId, user]))
-            return {
-                page: body.page,
-                size: body.size,
-                total,
-                list: quotes.map(quote => ({
-                    ...quote,
-                    status: this.smsQuoteUtilsService.resolveQuoteStatus(quote, now),
-                    userOptions: userByKeyId.get(quote.userKeyId)
-                })) as SmsQuoteDto.SmsQuoteListItemResponseDto[]
-            }
+            qb.addOrderBy('t.keyId', 'DESC')
+            qb.skip((page - 1) * size)
+            qb.take(size)
+            return await qb.getManyAndCount().then(async ([quotes, total]) => {
+                const { userOptions } = await this.findCrmUsers(quotes.map(quote => quote.userKeyId))
+                return {
+                    page: body.page,
+                    size: body.size,
+                    total,
+                    list: quotes.map(quote => ({
+                        ...quote,
+                        status: this.smsQuoteUtilsService.resolveQuoteStatus(quote, now),
+                        userOptions: userOptions.get(quote.userKeyId)
+                    }))
+                }
+            })
         })
     }
 }
