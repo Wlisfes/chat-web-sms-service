@@ -1,22 +1,26 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
+import { InjectRepository, Brackets, DataBaseService, EntityManager } from '@wlisfes/chat-web-base-schema/database'
+import { QueryRunner, Repository, SelectQueryBuilder } from '@wlisfes/chat-web-base-schema/database'
+import { fetchShrinkNumber, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
-import {
-    InjectRepository,
-    Brackets,
-    DataBaseService,
-    EntityManager,
-    QueryRunner,
-    Repository,
-    SelectQueryBuilder
-} from '@wlisfes/chat-web-base-schema/database'
-import { isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class SmsQuoteUtilsService {
     constructor(
         @InjectRepository(Schema.TbSmsQuoteDraft) private readonly draftRepository: Repository<Schema.TbSmsQuoteDraft>,
         private readonly database: DataBaseService
     ) {}
+
+    /**把报价记录中的 USD、本币价格字段转换为实际金额返回。*/
+    public fetchPriceNode<T extends Pick<Schema.TbSmsQuoteDraft, 'upUsd' | 'downUsd' | 'upLocal' | 'downLocal'>>(node: T): T {
+        return {
+            ...node,
+            upUsd: fetchShrinkNumber(node.upUsd),
+            downUsd: fetchShrinkNumber(node.downUsd),
+            upLocal: fetchShrinkNumber(node.upLocal),
+            downLocal: fetchShrinkNumber(node.downLocal)
+        }
+    }
 
     /**查询报价草稿。*/
     public async findDraft(keyId: number, manager?: EntityManager): Promise<Schema.TbSmsQuoteDraft> {
@@ -42,7 +46,10 @@ export class SmsQuoteUtilsService {
     ): Promise<Schema.TbSmsQuoteDraft[]> {
         const repository = (manager ?? this.draftRepository.manager).getRepository(Schema.TbSmsQuoteDraft)
         const list = await this.database.builder(repository, qb => {
-            qb.where('t.draftBatchId = :draftBatchId', { draftBatchId }).orderBy('t.countryKeyId', 'ASC')
+            // 软删除的草稿不参与预览和发布。
+            qb.where('t.draftBatchId = :draftBatchId', { draftBatchId })
+                .andWhere('t.status = :status', { status: Schema.TbSmsQuoteDraftStatus.ENABLE })
+                .orderBy('t.countryKeyId', 'ASC')
             if (isNotEmpty(manager)) {
                 qb.setLock('pessimistic_write')
             }

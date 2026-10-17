@@ -2,7 +2,7 @@ import { FeignClientCrmManager, FeignClientFinanceManager, resolveFeignServiceAu
 import { InjectRepository, DataBaseService, In, Repository } from '@wlisfes/chat-web-base-schema/database'
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
 import { AffectedResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
-import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
+import { PageResult, isNotEmpty, fetchZoomNumber } from '@wlisfes/chat-web-base-schema/utils'
 import { SmsQuoteUtilsService } from '@/modules/quote/quote.utils.service'
 import { type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { SmsAppUtilsService } from '@/modules/app/app.utils.service'
@@ -28,6 +28,7 @@ export class SmsQuoteService {
     public async httpBaseSmsQuoteEnums(): Promise<SmsQuoteDto.SmsQuoteEnumsResponseDto> {
         return {
             changeStatusOptions: Schema.TbSmsQuoteDraftChangeStatusDefinition.options,
+            draftStatusOptions: Schema.TbSmsQuoteDraftStatusDefinition.options,
             sourceOptions: Schema.TbSmsQuoteDraftSourceDefinition.options,
             statusOptions: Schema.TbSmsQuoteStatusDefinition.options
         }
@@ -134,6 +135,7 @@ export class SmsQuoteService {
                     effectiveTime: existing?.effectiveTime,
                     expiryTime: existing?.expiryTime,
                     source: existing ? Schema.TbSmsQuoteDraftSource.EXISTING : Schema.TbSmsQuoteDraftSource.ADDITION,
+                    status: Schema.TbSmsQuoteDraftStatus.ENABLE,
                     remark: existing?.remark,
                     createBy: principal.uid,
                     modifyBy: principal.uid
@@ -150,22 +152,28 @@ export class SmsQuoteService {
     ): Promise<PageResult<SmsQuoteDto.SmsQuoteDraftListItemResponseDto>> {
         return this.database.builder(this.draftRepository, async qb => {
             qb.where('t.draftBatchId = :draftBatchId', { draftBatchId: body.draftBatchId })
-                .orderBy('t.countryKeyId', 'ASC')
-                .skip((body.page - 1) * body.size)
-                .take(body.size)
-            const [list, total] = await qb.getManyAndCount()
-            return {
-                page: body.page,
-                size: body.size,
-                total,
-                list: list.map(item => {
-                    const existing = item.source === Schema.TbSmsQuoteDraftSource.EXISTING
-                    const changeStatus = existing
-                        ? Schema.TbSmsQuoteDraftChangeStatus.UNCHANGED
-                        : Schema.TbSmsQuoteDraftChangeStatus.ADDITION
-                    return { ...item, upStatus: changeStatus, downStatus: changeStatus }
-                })
+            if (isNotEmpty(body.status)) {
+                qb.andWhere('t.status = :status', { status: body.status })
             }
+            qb.orderBy('t.countryKeyId', 'ASC')
+            return await qb.getManyAndCount().then(async ([list, total]) => {
+                return {
+                    page: body.page,
+                    size: body.size,
+                    total,
+                    list: list.map(item => {
+                        const UNCHANGED = Schema.TbSmsQuoteDraftChangeStatus.UNCHANGED
+                        const ADDITION = Schema.TbSmsQuoteDraftChangeStatus.ADDITION
+                        const existing = item.source === Schema.TbSmsQuoteDraftSource.EXISTING
+                        const changeStatus = existing ? UNCHANGED : ADDITION
+                        return {
+                            ...this.smsQuoteUtilsService.fetchPriceNode(item),
+                            upStatus: changeStatus,
+                            downStatus: changeStatus
+                        }
+                    })
+                }
+            })
         })
     }
 
@@ -174,25 +182,41 @@ export class SmsQuoteService {
         principal: AuthPrincipal,
         body: SmsQuoteDto.UpdateSmsQuoteDraftDto
     ): Promise<Schema.TbSmsQuoteDraft> {
+        if ([body.upUsd, body.downUsd, body.effectiveTime].every(value => !isNotEmpty(value))) {
+            throw new BadRequestException('上行费率、下行费率、生效时间至少修改一项')
+        }
         return this.draftRepository.manager.transaction(async manager => {
             const draft = await this.smsQuoteUtilsService.findDraft(body.keyId, manager)
-            manager.merge(Schema.TbSmsQuoteDraft, draft, {
-                upUsd: body.upUsd,
-                downUsd: body.downUsd,
-                upLocal: Math.round(body.upUsd * Number(draft.exchangeRate)),
-                downLocal: Math.round(body.downUsd * Number(draft.exchangeRate)),
-                effectiveTime: isNotEmpty(body.effectiveTime) ? new Date(body.effectiveTime) : draft.effectiveTime,
-                expiryTime: isNotEmpty(body.expiryTime) ? new Date(body.expiryTime) : draft.expiryTime,
-                remark: body.remark,
-                modifyBy: principal.uid
-            })
+            // 只修改传入的字段；费率变更时按草稿汇率同步重算对应的本币价格。
+            if (isNotEmpty(body.upUsd)) {
+                const upUsd = Math.round(fetchZoomNumber(Number(body.upUsd)))
+                manager.merge(Schema.TbSmsQuoteDraft, draft, { upUsd, upLocal: Math.round(upUsd * Number(draft.exchangeRate)) })
+            }
+            if (isNotEmpty(body.downUsd)) {
+                const downUsd = Math.round(fetchZoomNumber(Number(body.downUsd)))
+                manager.merge(Schema.TbSmsQuoteDraft, draft, { downUsd, downLocal: Math.round(downUsd * Number(draft.exchangeRate)) })
+            }
+            if (isNotEmpty(body.effectiveTime)) {
+                manager.merge(Schema.TbSmsQuoteDraft, draft, { effectiveTime: new Date(body.effectiveTime) })
+            }
+            manager.merge(Schema.TbSmsQuoteDraft, draft, { modifyBy: principal.uid })
             return manager.save(draft)
         })
     }
 
-    /**批量删除短信报价草稿。*/
+    /**批量变更短信报价草稿状态：删除为软删除，可再恢复为正常。*/
+    public async httpBaseSmsUpdateQuoteDraftStatus(
+        principal: AuthPrincipal,
+        body: SmsQuoteDto.UpdateSmsQuoteDraftStatusDto
+    ): Promise<AffectedResponseDataDto> {
+        const keyIds = [...new Set(body.keyIds)]
+        const result = await this.draftRepository.update({ keyId: In(keyIds) }, { status: body.status, modifyBy: principal.uid })
+        return { affected: result.affected ?? 0 }
+    }
+
+    /**批量移除短信报价草稿。*/
     public async httpBaseSmsDeleteQuoteDraft(body: SmsQuoteDto.DeleteSmsQuoteDraftDto): Promise<AffectedResponseDataDto> {
-        // 草稿只是发布前的临时数据，删除时直接物理删除，不再保留草稿状态。
+        // 移除是物理删除，删除后不可恢复；可恢复的删除走 draft/status/update。
         const result = await this.draftRepository.delete({ keyId: In([...new Set(body.keyIds)]) })
         return { affected: result.affected ?? 0 }
     }
