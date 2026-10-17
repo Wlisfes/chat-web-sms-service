@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
 import { InjectRepository, Brackets, DataBaseService, EntityManager } from '@wlisfes/chat-web-base-schema/database'
 import { QueryRunner, Repository, SelectQueryBuilder } from '@wlisfes/chat-web-base-schema/database'
-import { fetchShrinkNumber, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
+import { isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
 @Injectable()
@@ -10,17 +10,6 @@ export class SmsQuoteUtilsService {
         @InjectRepository(Schema.TbSmsQuoteDraft) private readonly draftRepository: Repository<Schema.TbSmsQuoteDraft>,
         private readonly database: DataBaseService
     ) {}
-
-    /**把报价记录中的 USD、本币价格字段转换为实际金额返回。*/
-    public fetchPriceNode<T extends Pick<Schema.TbSmsQuoteDraft, 'upUsd' | 'downUsd' | 'upLocal' | 'downLocal'>>(node: T): T {
-        return {
-            ...node,
-            upUsd: fetchShrinkNumber(node.upUsd),
-            downUsd: fetchShrinkNumber(node.downUsd),
-            upLocal: fetchShrinkNumber(node.upLocal),
-            downLocal: fetchShrinkNumber(node.downLocal)
-        }
-    }
 
     /**查询客户应用在指定国家/地区的现行报价（未作废、未失效，按生效时间取最新一条），作为草稿价格变更的对比基准。*/
     public async findExistingQuoteMap(
@@ -58,7 +47,7 @@ export class SmsQuoteUtilsService {
         return Number(price) > Number(existing) ? Schema.TbSmsQuoteDraftChangeStatus.INCREASE : Schema.TbSmsQuoteDraftChangeStatus.DECREASE
     }
 
-    /**为草稿列表追加上下行价格变更状态，并把金额转换为实际金额。*/
+    /**为草稿列表追加现行报价原价与上下行价格变更状态；金额保持放大百万倍的存储值，由前端自行转换。*/
     public async fetchDraftChangeList(list: Schema.TbSmsQuoteDraft[]) {
         const existingMap = new Map<string, Schema.TbSmsQuote>()
         const scopes = new Map<string, Schema.TbSmsQuoteDraft[]>()
@@ -75,9 +64,9 @@ export class SmsQuoteUtilsService {
         return list.map(item => {
             const existing = existingMap.get(`${item.userKeyId}:${item.appKeyId}:${item.countryKeyId}`)
             return {
-                ...this.fetchPriceNode(item),
-                existingUpUsd: existing ? fetchShrinkNumber(existing.upUsd) : null,
-                existingDownUsd: existing ? fetchShrinkNumber(existing.downUsd) : null,
+                ...item,
+                existingUpUsd: existing ? existing.upUsd : null,
+                existingDownUsd: existing ? existing.downUsd : null,
                 upStatus: this.fetchChangeStatus(item.upUsd, existing?.upUsd),
                 downStatus: this.fetchChangeStatus(item.downUsd, existing?.downUsd)
             }

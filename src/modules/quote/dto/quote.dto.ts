@@ -1,4 +1,4 @@
-import { ApiProperty, IntersectionType, OmitType, PartialType, PickType } from '@nestjs/swagger'
+import { ApiProperty, IntersectionType, PartialType, PickType } from '@nestjs/swagger'
 import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsEnum, IsInt, IsNotEmpty, IsNumber } from 'class-validator'
 import { IsOptional, IsString, IsUUID, MaxLength, Matches, Min } from 'class-validator'
 import { EnumsResponseDto, PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
@@ -166,28 +166,19 @@ export class UserOptionResponseDto {
 }
 
 /** SmsQuoteDraftPageResponseDto.list 字段结构；分页查询短信报价草稿响应：POST /quote/draft/column。 */
-export class SmsQuoteDraftListItemResponseDto extends OmitType(Schema.TbSmsQuoteDraftDto, [
-    'upUsd',
-    'downUsd',
-    'upLocal',
-    'downLocal'
-] as const) {
-    @ApiProperty({ description: '上行短信售价USD（已换算为实际金额）', example: 0.03 })
-    upUsd: number
-
-    @ApiProperty({ description: '下行短信售价USD（已换算为实际金额）', example: 0.05 })
-    downUsd: number
-
-    @ApiProperty({ description: '上行短信本币售价（已换算为实际金额）', example: 0.03 })
-    upLocal: number
-
-    @ApiProperty({ description: '下行短信本币售价（已换算为实际金额）', example: 0.05 })
-    downLocal: number
-
-    @ApiProperty({ description: '现行报价上行售价USD（原价，实际金额）；当前应用无该国家报价时为 null', example: 0.03, nullable: true })
+export class SmsQuoteDraftListItemResponseDto extends Schema.TbSmsQuoteDraftDto {
+    @ApiProperty({
+        description: '现行报价上行售价USD（原价，放大百万倍存储值）；当前应用无该国家报价时为 null',
+        example: 30000,
+        nullable: true
+    })
     existingUpUsd: number | null
 
-    @ApiProperty({ description: '现行报价下行售价USD（原价，实际金额）；当前应用无该国家报价时为 null', example: 0.05, nullable: true })
+    @ApiProperty({
+        description: '现行报价下行售价USD（原价，放大百万倍存储值）；当前应用无该国家报价时为 null',
+        example: 50000,
+        nullable: true
+    })
     existingDownUsd: number | null
 
     @ApiProperty({
