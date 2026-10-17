@@ -84,6 +84,28 @@ export class SmsQuoteUtilsService {
         })
     }
 
+    /**统计草稿批次（仅有效草稿，不含软删除）：报价条目、国家/地区、新增/涨价/降价（上行或下行任一满足）、定时生效数。*/
+    public async fetchDraftSummary(draftBatchId: string) {
+        const drafts = await this.database.builder(this.draftRepository, qb => {
+            qb.where('t.draftBatchId = :draftBatchId', { draftBatchId })
+            qb.andWhere('t.status = :status', { status: Schema.TbSmsQuoteDraftStatus.ENABLE })
+            return qb.getMany()
+        })
+        const items = await this.fetchDraftChangeList(drafts)
+        const now = Date.now()
+        const count = (status: Schema.TbSmsQuoteDraftChangeStatus) => {
+            return items.filter(item => item.upStatus === status || item.downStatus === status).length
+        }
+        return {
+            total: items.length,
+            countries: new Set(items.map(item => item.countryKeyId)).size,
+            additions: count(Schema.TbSmsQuoteDraftChangeStatus.NEW),
+            increases: count(Schema.TbSmsQuoteDraftChangeStatus.INCREASE),
+            decreases: count(Schema.TbSmsQuoteDraftChangeStatus.DECREASE),
+            scheduled: items.filter(item => item.effectiveTime && new Date(item.effectiveTime).getTime() > now).length
+        }
+    }
+
     /**查询报价草稿。*/
     public async findDraft(keyId: number, manager?: EntityManager): Promise<Schema.TbSmsQuoteDraft> {
         const repository = (manager ?? this.draftRepository.manager).getRepository(Schema.TbSmsQuoteDraft)

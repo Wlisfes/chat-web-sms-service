@@ -109,7 +109,7 @@ export class UpdateSmsQuoteDraftStatusDto extends IntersectionType(
     PickType(Schema.TbSmsQuoteDraftDto, ['status'])
 ) {}
 
-/** 入参：POST /quote/preview、POST /quote/publish（预览短信报价草稿批次；发布短信报价草稿批次）。 */
+/** 发布短信报价草稿批次入参：POST /quote/publish。 */
 export class SmsQuoteDraftBatchDto {
     @ApiProperty({ description: '草稿批次ID', format: 'uuid', example: 'a56b8b36-1d86-4cf2-9c98-63f4134c83d0' })
     @IsUUID('4', { message: '草稿批次ID格式错误' })
@@ -214,31 +214,34 @@ export class SmsQuoteDraftListItemResponseDto extends OmitType(Schema.TbSmsQuote
     userOptions?: UserOptionResponseDto
 }
 
-/** 分页查询短信报价草稿响应：POST /quote/draft/column。 */
-export class SmsQuoteDraftPageResponseDto extends PageResponseDataDto {
-    @ApiProperty({ description: '报价草稿列表', type: [SmsQuoteDraftListItemResponseDto] })
-    list: SmsQuoteDraftListItemResponseDto[]
-}
-
-/** 预览短信报价草稿批次响应：POST /quote/preview。 */
-export class SmsQuotePreviewResponseDto {
-    @ApiProperty({ description: '草稿批次 ID', format: 'uuid', example: 'a56b8b36-1d86-4cf2-9c98-63f4134c83d0' })
-    draftBatchId: string
-
-    @ApiProperty({ description: 'CRM 客户主键', example: 10241000 })
-    userKeyId: number
-
-    @ApiProperty({ description: '短信应用 ID', example: 'SMS9F2A8B31' })
-    appId: string
-
-    @ApiProperty({ description: '报价币种', example: 'CNY' })
-    currency: string
-
-    @ApiProperty({ description: '报价数量', example: 3 })
+/** SmsQuoteDraftPageResponseDto.summary 字段结构；草稿批次统计（仅有效草稿，不含软删除）。 */
+export class SmsQuoteDraftSummaryResponseDto {
+    @ApiProperty({ description: '报价条目数量', example: 10 })
     total: number
 
-    @ApiProperty({ description: '报价草稿列表', type: [Schema.TbSmsQuoteDraftDto] })
-    list: Schema.TbSmsQuoteDraftDto[]
+    @ApiProperty({ description: '国家/地区数量', example: 10 })
+    countries: number
+
+    @ApiProperty({ description: '新增报价数量（上行或下行无现行报价）', example: 4 })
+    additions: number
+
+    @ApiProperty({ description: '涨价数量（上行或下行较现行报价增长）', example: 1 })
+    increases: number
+
+    @ApiProperty({ description: '降价数量（上行或下行较现行报价降低）', example: 1 })
+    decreases: number
+
+    @ApiProperty({ description: '定时生效数量（生效时间晚于当前时间）', example: 2 })
+    scheduled: number
+}
+
+/** 分页查询短信报价草稿响应：POST /quote/draft/column。 */
+export class SmsQuoteDraftPageResponseDto extends PageResponseDataDto {
+    @ApiProperty({ description: '草稿批次统计', type: SmsQuoteDraftSummaryResponseDto })
+    summary: SmsQuoteDraftSummaryResponseDto
+
+    @ApiProperty({ description: '报价草稿列表', type: [SmsQuoteDraftListItemResponseDto] })
+    list: SmsQuoteDraftListItemResponseDto[]
 }
 
 /** 发布短信报价草稿批次响应：POST /quote/publish。 */

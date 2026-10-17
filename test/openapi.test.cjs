@@ -44,9 +44,10 @@ async function createDocument() {
 
 test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
     const document = await createDocument()
-    for (const schemaName of ['SmsAppPageResponseDto', 'SmsQuoteDraftPageResponseDto', 'SmsQuotePageResponseDto']) {
+    const pageSchemas = { SmsAppPageResponseDto: [], SmsQuoteDraftPageResponseDto: ['summary'], SmsQuotePageResponseDto: [] }
+    for (const [schemaName, extra] of Object.entries(pageSchemas)) {
         const properties = document.components.schemas?.[schemaName]?.properties ?? {}
-        assert.deepEqual(Object.keys(properties).sort(), ['list', 'page', 'size', 'total'])
+        assert.deepEqual(Object.keys(properties).sort(), ['list', 'page', 'size', 'total', ...extra].sort())
         assert.equal(properties.pageSize, undefined, `${schemaName} 不能保留 pageSize`)
         assert.equal(properties.items, undefined, `${schemaName} 不能保留 items`)
     }
@@ -56,8 +57,8 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
             .map(([method, operation]) => ({ path, method, operation }))
     )
 
-    assert.equal(operations.length, 16)
-    assert.equal(operations.filter(({ operation }) => operation.requestBody).length, 14)
+    assert.equal(operations.length, 15)
+    assert.equal(operations.filter(({ operation }) => operation.requestBody).length, 13)
     assert.equal(operations.flatMap(({ operation }) => operation.parameters ?? []).filter(parameter => parameter.in === 'query').length, 0)
 
     for (const { path, method, operation } of operations) {

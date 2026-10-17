@@ -142,14 +142,17 @@ export class SmsQuoteService {
             qb.orderBy('t.countryKeyId', 'ASC')
             return await qb.getManyAndCount().then(async ([list, total]) => {
                 // 变更状态实时对比现行报价：无现行报价为新增，价格相同为未变，否则为增长/降低；客户信息通过 CRM Feign 补充。
-                const [changeList, { userOptions }] = await Promise.all([
+                // 统计基于整批有效草稿计算，不受分页和状态筛选影响。
+                const [changeList, { userOptions }, summary] = await Promise.all([
                     this.smsQuoteUtilsService.fetchDraftChangeList(list),
-                    this.findCrmUsers(list.map(item => item.userKeyId))
+                    this.findCrmUsers(list.map(item => item.userKeyId)),
+                    this.smsQuoteUtilsService.fetchDraftSummary(body.draftBatchId)
                 ])
                 return {
                     page: body.page,
                     size: body.size,
                     total,
+                    summary,
                     list: changeList.map(item => ({ ...item, userOptions: userOptions.get(item.userKeyId) }))
                 }
             })
@@ -204,19 +207,6 @@ export class SmsQuoteService {
         // 移除是物理删除，删除后不可恢复；可恢复的删除走 draft/status/update。
         const result = await this.draftRepository.delete({ keyId: In([...new Set(body.keyIds)]) })
         return { affected: result.affected ?? 0 }
-    }
-
-    /**预览短信报价草稿批次。*/
-    public async httpBaseSmsPreviewQuote(body: SmsQuoteDto.SmsQuoteDraftBatchDto): Promise<SmsQuoteDto.SmsQuotePreviewResponseDto> {
-        const list = await this.smsQuoteUtilsService.getActiveDraftBatch(body.draftBatchId)
-        return {
-            draftBatchId: body.draftBatchId,
-            userKeyId: list[0].userKeyId,
-            appId: list[0].appId,
-            currency: list[0].currency,
-            total: list.length,
-            list
-        }
     }
 
     /**发布短信报价草稿批次。*/

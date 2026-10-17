@@ -72,15 +72,6 @@ export class SmsQuoteController {
         return this.smsQuoteService.httpBaseSmsDeleteQuoteDraft(body)
     }
 
-    @ApiServiceDecorator(Post('preview'), {
-        operation: { summary: '预览短信报价草稿批次' },
-        request: { source: 'body', type: SmsQuoteDto.SmsQuoteDraftBatchDto },
-        response: { type: SmsQuoteDto.SmsQuotePreviewResponseDto, description: '报价草稿批次预览' }
-    })
-    public async httpBaseSmsPreviewQuote(@Body() body: SmsQuoteDto.SmsQuoteDraftBatchDto): Promise<SmsQuoteDto.SmsQuotePreviewResponseDto> {
-        return this.smsQuoteService.httpBaseSmsPreviewQuote(body)
-    }
-
     @ApiServiceDecorator(Post('publish'), {
         operation: { summary: '发布短信报价草稿批次' },
         request: { source: 'body', type: SmsQuoteDto.SmsQuoteDraftBatchDto },
