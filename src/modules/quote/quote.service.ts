@@ -2,7 +2,7 @@ import { FeignClientCrmManager, FeignClientFinanceManager, resolveFeignServiceAu
 import { InjectRepository, DataBaseService, In, Repository } from '@wlisfes/chat-web-base-schema/database'
 import { BadRequestException, ConflictException, Injectable } from '@nestjs/common'
 import { AffectedResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
-import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
+import { PageResult, isNotEmpty, fetchZoomNumber } from '@wlisfes/chat-web-base-schema/utils'
 import { SmsQuoteUtilsService } from '@/modules/quote/quote.utils.service'
 import { type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { SmsAppUtilsService } from '@/modules/app/app.utils.service'
@@ -156,21 +156,24 @@ export class SmsQuoteService {
                 qb.andWhere('t.status = :status', { status: body.status })
             }
             qb.orderBy('t.countryKeyId', 'ASC')
-                .skip((body.page - 1) * body.size)
-                .take(body.size)
-            const [list, total] = await qb.getManyAndCount()
-            return {
-                page: body.page,
-                size: body.size,
-                total,
-                list: list.map(item => {
-                    const existing = item.source === Schema.TbSmsQuoteDraftSource.EXISTING
-                    const changeStatus = existing
-                        ? Schema.TbSmsQuoteDraftChangeStatus.UNCHANGED
-                        : Schema.TbSmsQuoteDraftChangeStatus.ADDITION
-                    return { ...this.smsQuoteUtilsService.fetchPriceNode(item), upStatus: changeStatus, downStatus: changeStatus }
-                })
-            }
+            return await qb.getManyAndCount().then(async ([list, total]) => {
+                return {
+                    page: body.page,
+                    size: body.size,
+                    total,
+                    list: list.map(item => {
+                        const UNCHANGED = Schema.TbSmsQuoteDraftChangeStatus.UNCHANGED
+                        const ADDITION = Schema.TbSmsQuoteDraftChangeStatus.ADDITION
+                        const existing = item.source === Schema.TbSmsQuoteDraftSource.EXISTING
+                        const changeStatus = existing ? UNCHANGED : ADDITION
+                        return {
+                            ...this.smsQuoteUtilsService.fetchPriceNode(item),
+                            upStatus: changeStatus,
+                            downStatus: changeStatus
+                        }
+                    })
+                }
+            })
         })
     }
 
@@ -179,18 +182,24 @@ export class SmsQuoteService {
         principal: AuthPrincipal,
         body: SmsQuoteDto.UpdateSmsQuoteDraftDto
     ): Promise<Schema.TbSmsQuoteDraft> {
+        if ([body.upUsd, body.downUsd, body.effectiveTime].every(value => !isNotEmpty(value))) {
+            throw new BadRequestException('上行费率、下行费率、生效时间至少修改一项')
+        }
         return this.draftRepository.manager.transaction(async manager => {
             const draft = await this.smsQuoteUtilsService.findDraft(body.keyId, manager)
-            manager.merge(Schema.TbSmsQuoteDraft, draft, {
-                upUsd: body.upUsd,
-                downUsd: body.downUsd,
-                upLocal: Math.round(body.upUsd * Number(draft.exchangeRate)),
-                downLocal: Math.round(body.downUsd * Number(draft.exchangeRate)),
-                effectiveTime: isNotEmpty(body.effectiveTime) ? new Date(body.effectiveTime) : draft.effectiveTime,
-                expiryTime: isNotEmpty(body.expiryTime) ? new Date(body.expiryTime) : draft.expiryTime,
-                remark: body.remark,
-                modifyBy: principal.uid
-            })
+            // 只修改传入的字段；费率变更时按草稿汇率同步重算对应的本币价格。
+            if (isNotEmpty(body.upUsd)) {
+                const upUsd = Math.round(fetchZoomNumber(Number(body.upUsd)))
+                manager.merge(Schema.TbSmsQuoteDraft, draft, { upUsd, upLocal: Math.round(upUsd * Number(draft.exchangeRate)) })
+            }
+            if (isNotEmpty(body.downUsd)) {
+                const downUsd = Math.round(fetchZoomNumber(Number(body.downUsd)))
+                manager.merge(Schema.TbSmsQuoteDraft, draft, { downUsd, downLocal: Math.round(downUsd * Number(draft.exchangeRate)) })
+            }
+            if (isNotEmpty(body.effectiveTime)) {
+                manager.merge(Schema.TbSmsQuoteDraft, draft, { effectiveTime: new Date(body.effectiveTime) })
+            }
+            manager.merge(Schema.TbSmsQuoteDraft, draft, { modifyBy: principal.uid })
             return manager.save(draft)
         })
     }

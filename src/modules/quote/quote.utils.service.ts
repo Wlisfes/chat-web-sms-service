@@ -1,16 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
+import { InjectRepository, Brackets, DataBaseService, EntityManager } from '@wlisfes/chat-web-base-schema/database'
+import { QueryRunner, Repository, SelectQueryBuilder } from '@wlisfes/chat-web-base-schema/database'
+import { fetchShrinkNumber, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 
-import {
-    InjectRepository,
-    Brackets,
-    DataBaseService,
-    EntityManager,
-    QueryRunner,
-    Repository,
-    SelectQueryBuilder
-} from '@wlisfes/chat-web-base-schema/database'
-import { fetchDivNumber, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
 @Injectable()
 export class SmsQuoteUtilsService {
     constructor(
@@ -18,19 +11,14 @@ export class SmsQuoteUtilsService {
         private readonly database: DataBaseService
     ) {}
 
-    /**存储值（放大百万倍的整数）转换为实际金额。*/
-    public fetchPrice(price: number): number {
-        return fetchDivNumber(price, 1000000)
-    }
-
     /**把报价记录中的 USD、本币价格字段转换为实际金额返回。*/
     public fetchPriceNode<T extends Pick<Schema.TbSmsQuoteDraft, 'upUsd' | 'downUsd' | 'upLocal' | 'downLocal'>>(node: T): T {
         return {
             ...node,
-            upUsd: this.fetchPrice(node.upUsd),
-            downUsd: this.fetchPrice(node.downUsd),
-            upLocal: this.fetchPrice(node.upLocal),
-            downLocal: this.fetchPrice(node.downLocal)
+            upUsd: fetchShrinkNumber(node.upUsd),
+            downUsd: fetchShrinkNumber(node.downUsd),
+            upLocal: fetchShrinkNumber(node.upLocal),
+            downLocal: fetchShrinkNumber(node.downLocal)
         }
     }
 

@@ -1,5 +1,5 @@
 import { ApiProperty, IntersectionType, OmitType, PartialType, PickType } from '@nestjs/swagger'
-import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsEnum, IsInt, IsNotEmpty } from 'class-validator'
+import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsEnum, IsInt, IsNotEmpty, IsNumber } from 'class-validator'
 import { IsOptional, IsString, IsUUID, MaxLength, Matches, Min } from 'class-validator'
 import { EnumsResponseDto, PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
@@ -55,7 +55,7 @@ export class ListSmsQuoteDraftDto extends PageDto {
     status?: Schema.TbSmsQuoteDraftStatus
 }
 
-/** 更新短信报价草稿入参：POST /quote/draft/update。 */
+/** 更新短信报价草稿入参：POST /quote/draft/update（只允许修改上下行费率和生效时间，可只传其中任意一个，至少传一个）。 */
 export class UpdateSmsQuoteDraftDto {
     @ApiProperty({ description: '报价草稿主键', example: 1 })
     @Type(() => Number)
@@ -63,33 +63,32 @@ export class UpdateSmsQuoteDraftDto {
     @Min(1, { message: '报价草稿主键必须大于0' })
     keyId: number
 
-    @ApiProperty({ description: '上行短信售价USD（放大百万倍存储）', example: 30000 })
+    @ApiProperty({
+        description: '上行短信售价USD实际金额（最多6位小数，服务端放大百万倍存储）；不传则不修改',
+        required: false,
+        example: 0.03
+    })
+    @IsOptional()
     @Type(() => Number)
-    @IsInt({ message: '上行短信售价必须是整数' })
+    @IsNumber({ maxDecimalPlaces: 6 }, { message: '上行短信售价必须是数字且最多6位小数' })
     @Min(0, { message: '上行短信售价不能小于0' })
-    upUsd: number
+    upUsd?: number
 
-    @ApiProperty({ description: '下行短信售价USD（放大百万倍存储）', example: 50000 })
+    @ApiProperty({
+        description: '下行短信售价USD实际金额（最多6位小数，服务端放大百万倍存储）；不传则不修改',
+        required: false,
+        example: 0.05
+    })
+    @IsOptional()
     @Type(() => Number)
-    @IsInt({ message: '下行短信售价必须是整数' })
+    @IsNumber({ maxDecimalPlaces: 6 }, { message: '下行短信售价必须是数字且最多6位小数' })
     @Min(0, { message: '下行短信售价不能小于0' })
-    downUsd: number
+    downUsd?: number
 
-    @ApiProperty({ description: '生效时间', required: false, example: '2026-08-24 00:00:00' })
+    @ApiProperty({ description: '生效时间；不传则不修改', required: false, example: '2026-08-24 00:00:00' })
     @IsOptional()
     @Matches(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})?$/, { message: '生效时间格式错误' })
     effectiveTime?: string
-
-    @ApiProperty({ description: '失效时间', required: false, example: '2026-12-31 23:59:59' })
-    @IsOptional()
-    @Matches(/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})?$/, { message: '失效时间格式错误' })
-    expiryTime?: string
-
-    @ApiProperty({ description: '备注', required: false, example: '客户专属报价' })
-    @IsOptional()
-    @IsString({ message: '备注必须是字符串' })
-    @MaxLength(1024, { message: '备注长度不能超过1024位' })
-    remark?: string
 }
 
 /** 批量删除短信报价草稿入参：POST /quote/draft/delete。 */
