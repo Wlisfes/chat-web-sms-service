@@ -22,6 +22,68 @@ export class SmsQuoteUtilsService {
         }
     }
 
+    /**查询客户应用在指定国家/地区的现行报价（未作废、未失效，按生效时间取最新一条），作为草稿价格变更的对比基准。*/
+    public async findExistingQuoteMap(
+        scope: { userKeyId: number; appKeyId: number; countryKeyIds: number[] },
+        manager?: EntityManager
+    ): Promise<Map<number, Schema.TbSmsQuote>> {
+        const existingMap = new Map<number, Schema.TbSmsQuote>()
+        if (scope.countryKeyIds.length === 0) {
+            return existingMap
+        }
+        const repository = (manager ?? this.draftRepository.manager).getRepository(Schema.TbSmsQuote)
+        const list = await this.database.builder(repository, qb => {
+            qb.where('t.userKeyId = :userKeyId AND t.appKeyId = :appKeyId', scope)
+            qb.andWhere('t.countryKeyId IN (:...countryKeyIds)', scope)
+            qb.andWhere('t.status <> :deleted', { deleted: Schema.TbSmsQuoteStatus.DELETED })
+            qb.andWhere('(t.expiryTime IS NULL OR t.expiryTime > :now)', { now: new Date() })
+            qb.orderBy('t.effectiveTime', 'DESC').addOrderBy('t.keyId', 'DESC')
+            return qb.getMany()
+        })
+        for (const quote of list) {
+            if (!existingMap.has(quote.countryKeyId)) {
+                existingMap.set(quote.countryKeyId, quote)
+            }
+        }
+        return existingMap
+    }
+
+    /**对比现行报价得出价格变更状态：无现行报价为新增，价格相同为未变，否则为增长或降低。*/
+    public fetchChangeStatus(price: number, existing?: number): Schema.TbSmsQuoteDraftChangeStatus {
+        if (!isNotEmpty(existing)) {
+            return Schema.TbSmsQuoteDraftChangeStatus.NEW
+        } else if (Number(price) === Number(existing)) {
+            return Schema.TbSmsQuoteDraftChangeStatus.CURRENT
+        }
+        return Number(price) > Number(existing) ? Schema.TbSmsQuoteDraftChangeStatus.INCREASE : Schema.TbSmsQuoteDraftChangeStatus.DECREASE
+    }
+
+    /**为草稿列表追加上下行价格变更状态，并把金额转换为实际金额。*/
+    public async fetchDraftChangeList(list: Schema.TbSmsQuoteDraft[]) {
+        const existingMap = new Map<string, Schema.TbSmsQuote>()
+        const scopes = new Map<string, Schema.TbSmsQuoteDraft[]>()
+        for (const item of list) {
+            const key = `${item.userKeyId}:${item.appKeyId}`
+            scopes.set(key, [...(scopes.get(key) ?? []), item])
+        }
+        for (const items of scopes.values()) {
+            const { userKeyId, appKeyId } = items[0]
+            const countryKeyIds = [...new Set(items.map(item => item.countryKeyId))]
+            const scopeMap = await this.findExistingQuoteMap({ userKeyId, appKeyId, countryKeyIds })
+            scopeMap.forEach((quote, countryKeyId) => existingMap.set(`${userKeyId}:${appKeyId}:${countryKeyId}`, quote))
+        }
+        return list.map(item => {
+            const existing = existingMap.get(`${item.userKeyId}:${item.appKeyId}:${item.countryKeyId}`)
+            return {
+                ...this.fetchPriceNode(item),
+                existingUpUsd: existing ? fetchShrinkNumber(existing.upUsd) : null,
+                existingDownUsd: existing ? fetchShrinkNumber(existing.downUsd) : null,
+                upStatus: this.fetchChangeStatus(item.upUsd, existing?.upUsd),
+                downStatus: this.fetchChangeStatus(item.downUsd, existing?.downUsd)
+            }
+        })
+    }
+
     /**查询报价草稿。*/
     public async findDraft(keyId: number, manager?: EntityManager): Promise<Schema.TbSmsQuoteDraft> {
         const repository = (manager ?? this.draftRepository.manager).getRepository(Schema.TbSmsQuoteDraft)

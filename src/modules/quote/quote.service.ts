@@ -87,29 +87,11 @@ export class SmsQuoteService {
 
         return this.draftRepository.manager.transaction(async manager => {
             const draftRepository = manager.getRepository(Schema.TbSmsQuoteDraft)
-            const quoteRepository = manager.getRepository(Schema.TbSmsQuote)
             const countryKeyIds = rates.map(rate => rate.countryKeyId)
-            const existingQuotes =
-                countryKeyIds.length === 0
-                    ? []
-                    : await quoteRepository
-                          .createQueryBuilder('t')
-                          .where('t.userKeyId = :userKeyId AND t.appKeyId = :appKeyId', {
-                              userKeyId: user.keyId,
-                              appKeyId: app.keyId
-                          })
-                          .andWhere('t.countryKeyId IN (:...countryKeyIds)', { countryKeyIds })
-                          .andWhere('t.status <> :deleted', { deleted: Schema.TbSmsQuoteStatus.DELETED })
-                          .andWhere('(t.expiryTime IS NULL OR t.expiryTime > :now)', { now: new Date() })
-                          .orderBy('t.effectiveTime', 'DESC')
-                          .addOrderBy('t.keyId', 'DESC')
-                          .getMany()
-            const existingByCountry = new Map<number, Schema.TbSmsQuote>()
-            for (const quote of existingQuotes) {
-                if (!existingByCountry.has(quote.countryKeyId)) {
-                    existingByCountry.set(quote.countryKeyId, quote)
-                }
-            }
+            const existingByCountry = await this.smsQuoteUtilsService.findExistingQuoteMap(
+                { userKeyId: user.keyId, appKeyId: app.keyId, countryKeyIds },
+                manager
+            )
             const draftBatchId = randomUUID()
             const drafts = rates.map(rate => {
                 const existing = existingByCountry.get(rate.countryKeyId)
@@ -157,22 +139,8 @@ export class SmsQuoteService {
             }
             qb.orderBy('t.countryKeyId', 'ASC')
             return await qb.getManyAndCount().then(async ([list, total]) => {
-                return {
-                    page: body.page,
-                    size: body.size,
-                    total,
-                    list: list.map(item => {
-                        const UNCHANGED = Schema.TbSmsQuoteDraftChangeStatus.UNCHANGED
-                        const ADDITION = Schema.TbSmsQuoteDraftChangeStatus.ADDITION
-                        const existing = item.source === Schema.TbSmsQuoteDraftSource.EXISTING
-                        const changeStatus = existing ? UNCHANGED : ADDITION
-                        return {
-                            ...this.smsQuoteUtilsService.fetchPriceNode(item),
-                            upStatus: changeStatus,
-                            downStatus: changeStatus
-                        }
-                    })
-                }
+                // 变更状态实时对比现行报价：无现行报价为新增，价格相同为未变，否则为增长/降低。
+                return { page: body.page, size: body.size, total, list: await this.smsQuoteUtilsService.fetchDraftChangeList(list) }
             })
         })
     }
@@ -181,27 +149,33 @@ export class SmsQuoteService {
     public async httpBaseSmsUpdateQuoteDraft(
         principal: AuthPrincipal,
         body: SmsQuoteDto.UpdateSmsQuoteDraftDto
-    ): Promise<Schema.TbSmsQuoteDraft> {
+    ): Promise<SmsQuoteDto.SmsQuoteDraftListItemResponseDto> {
         if ([body.upUsd, body.downUsd, body.effectiveTime].every(value => !isNotEmpty(value))) {
             throw new BadRequestException('上行费率、下行费率、生效时间至少修改一项')
         }
-        return this.draftRepository.manager.transaction(async manager => {
-            const draft = await this.smsQuoteUtilsService.findDraft(body.keyId, manager)
-            // 只修改传入的字段；费率变更时按草稿汇率同步重算对应的本币价格。
-            if (isNotEmpty(body.upUsd)) {
-                const upUsd = Math.round(fetchZoomNumber(Number(body.upUsd)))
-                manager.merge(Schema.TbSmsQuoteDraft, draft, { upUsd, upLocal: Math.round(upUsd * Number(draft.exchangeRate)) })
-            }
-            if (isNotEmpty(body.downUsd)) {
-                const downUsd = Math.round(fetchZoomNumber(Number(body.downUsd)))
-                manager.merge(Schema.TbSmsQuoteDraft, draft, { downUsd, downLocal: Math.round(downUsd * Number(draft.exchangeRate)) })
-            }
-            if (isNotEmpty(body.effectiveTime)) {
-                manager.merge(Schema.TbSmsQuoteDraft, draft, { effectiveTime: new Date(body.effectiveTime) })
-            }
-            manager.merge(Schema.TbSmsQuoteDraft, draft, { modifyBy: principal.uid })
-            return manager.save(draft)
-        })
+        return this.draftRepository.manager
+            .transaction(async manager => {
+                const draft = await this.smsQuoteUtilsService.findDraft(body.keyId, manager)
+                // 只修改传入的字段；费率变更时按草稿汇率同步重算对应的本币价格。
+                if (isNotEmpty(body.upUsd)) {
+                    const upUsd = Math.round(fetchZoomNumber(Number(body.upUsd)))
+                    manager.merge(Schema.TbSmsQuoteDraft, draft, { upUsd, upLocal: Math.round(upUsd * Number(draft.exchangeRate)) })
+                }
+                if (isNotEmpty(body.downUsd)) {
+                    const downUsd = Math.round(fetchZoomNumber(Number(body.downUsd)))
+                    manager.merge(Schema.TbSmsQuoteDraft, draft, { downUsd, downLocal: Math.round(downUsd * Number(draft.exchangeRate)) })
+                }
+                if (isNotEmpty(body.effectiveTime)) {
+                    manager.merge(Schema.TbSmsQuoteDraft, draft, { effectiveTime: new Date(body.effectiveTime) })
+                }
+                manager.merge(Schema.TbSmsQuoteDraft, draft, { modifyBy: principal.uid })
+                return await manager.save(draft)
+            })
+            .then(async draft => {
+                // 返回与列表一致的结构（含原价、最新变更状态），前端改价后直接回写当前行。
+                const [node] = await this.smsQuoteUtilsService.fetchDraftChangeList([draft])
+                return node
+            })
     }
 
     /**批量变更短信报价草稿状态：删除为软删除，可再恢复为正常。*/

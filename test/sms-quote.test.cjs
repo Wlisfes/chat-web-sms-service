@@ -45,3 +45,14 @@ test('正式报价状态按生效、失效时间实时计算', () => {
         'deleted'
     )
 })
+
+test('报价草稿变更状态：无现行报价为新增，价格相同为未变，否则为增长或降低', () => {
+    const { SmsQuoteUtilsService } = require('../dist/modules/quote/quote.utils.service')
+    const service = new SmsQuoteUtilsService({}, {})
+    assert.equal(service.fetchChangeStatus(320000, undefined), 'NEW')
+    assert.equal(service.fetchChangeStatus(320000, 320000), 'CURRENT')
+    assert.equal(service.fetchChangeStatus(320000, '320000'), 'CURRENT')
+    assert.equal(service.fetchChangeStatus(320001, 320000), 'INCREASE')
+    assert.equal(service.fetchChangeStatus(316406, 316400), 'INCREASE')
+    assert.equal(service.fetchChangeStatus(7500, 7505), 'DECREASE')
+})

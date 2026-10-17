@@ -172,11 +172,17 @@ export class SmsQuoteDraftListItemResponseDto extends OmitType(Schema.TbSmsQuote
     @ApiProperty({ description: '下行短信本币售价（已换算为实际金额）', example: 0.05 })
     downLocal: number
 
+    @ApiProperty({ description: '现行报价上行售价USD（原价，实际金额）；当前应用无该国家报价时为 null', example: 0.03, nullable: true })
+    existingUpUsd: number | null
+
+    @ApiProperty({ description: '现行报价下行售价USD（原价，实际金额）；当前应用无该国家报价时为 null', example: 0.05, nullable: true })
+    existingDownUsd: number | null
+
     @ApiProperty({
         description: '上行价格变更状态',
         enum: Schema.TbSmsQuoteDraftChangeStatus,
         enumName: 'TbSmsQuoteDraftChangeStatus',
-        example: Schema.TbSmsQuoteDraftChangeStatus.ADDITION
+        example: Schema.TbSmsQuoteDraftChangeStatus.NEW
     })
     upStatus: Schema.TbSmsQuoteDraftChangeStatus
 
@@ -184,7 +190,7 @@ export class SmsQuoteDraftListItemResponseDto extends OmitType(Schema.TbSmsQuote
         description: '下行价格变更状态',
         enum: Schema.TbSmsQuoteDraftChangeStatus,
         enumName: 'TbSmsQuoteDraftChangeStatus',
-        example: Schema.TbSmsQuoteDraftChangeStatus.ADDITION
+        example: Schema.TbSmsQuoteDraftChangeStatus.NEW
     })
     downStatus: Schema.TbSmsQuoteDraftChangeStatus
 }
