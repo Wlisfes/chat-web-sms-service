@@ -29,7 +29,7 @@ yarn dev
 - `POST /api/sms/app/*`：客户短信应用
 - `POST /api/sms/quote/*`：短信报价草稿与正式报价
 
-服务间访问经 Gateway `/feign/sms/**`，由共享 `FeignClientSmsManager` 定义契约。
+服务间访问经 Gateway `/feign/sms/**`，由共享 `FeignClientSmsManager` 定义契约：`/feign/sms/app/count/resolve` 按客户统计短信应用数量，`/feign/sms/app/column/resolve` 按短信应用主键批量返回摘要（不含密钥和推送地址，供 SRM 路由绑定和选路使用）。
 
 服务通过 `@wlisfes/chat-web-base-schema` 的 `NacosModule` 读取 `chat-web-sms-service-development.yaml` 并注册实例。
 
