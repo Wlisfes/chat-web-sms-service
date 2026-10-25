@@ -6,10 +6,8 @@ import * as constants from '@/modules/dispatch/dispatch.constants'
 
 @Injectable()
 export class DispatchService {
-    constructor(
-        private readonly logger: Logger,
-        private readonly rabbitmqService: RabbitmqService
-    ) {}
+    private readonly logger = new Logger(DispatchService.name)
+    constructor(private readonly rabbitmqService: RabbitmqService) {}
 
     public async fetchBaseMessageSubmit() {
         const payload = {

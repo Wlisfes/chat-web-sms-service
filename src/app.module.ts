@@ -3,6 +3,7 @@ import { forRootNacosRuntimeOptions, NacosModule } from '@wlisfes/chat-web-base-
 import { HttpResponseModule } from '@wlisfes/chat-web-base-schema/interceptor'
 import { RabbitmqModule } from '@wlisfes/chat-web-base-schema/rabbitmq'
 import { SMS_RABBITMQ_VHOST } from '@/modules/dispatch/dispatch.constants'
+import { DispatchModule } from '@/modules/dispatch/dispatch.module'
 import { setupSmsTopology } from '@/modules/dispatch/dispatch.topology'
 import { SmsQuoteModule } from '@/modules/quote/quote.module'
 import { DatabaseModule } from '@/database/database.module'
@@ -24,6 +25,7 @@ import { SmsAppModule } from '@/modules/app/app.module'
         GatewayPrincipalModule,
         AuthorizationModule,
         SmsAppModule,
+        DispatchModule,
         SmsQuoteModule,
         FeignModule
     ],
