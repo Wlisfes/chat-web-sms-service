@@ -1,6 +1,6 @@
 import { ApiProperty, IntersectionType, OmitType, PartialType, PickType } from '@nestjs/swagger'
 import { EnumsResponseDto, PageResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
-import { IsInt, Min } from 'class-validator'
+import { IsEnum, IsInt, IsOptional, Min } from 'class-validator'
 import { Type } from 'class-transformer'
 import { PageDto } from '@wlisfes/chat-web-base-schema/utils'
 import * as Schema from '@wlisfes/chat-web-base-schema'
@@ -35,8 +35,20 @@ export class ListSmsAppDto extends IntersectionType(
     PartialType(PickType(Schema.TbSmsAppDto, ['userKeyId', 'appId', 'appAlias', 'status', 'type'] as const))
 ) {}
 
-/** 获取客户短信应用下拉选项入参：POST /app/select。 */
-export class SelectSmsAppDto extends PickType(Schema.TbSmsAppDto, ['userKeyId'] as const) {}
+/** 获取短信应用下拉选项入参：POST /app/select；不传客户时查询全部应用，类型可选。 */
+export class SelectSmsAppDto {
+    @ApiProperty({ description: 'CRM 客户主键', required: false, example: 10241000 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt({ message: '客户主键必须是整数' })
+    @Min(1, { message: '客户主键必须大于0' })
+    userKeyId?: number
+
+    @ApiProperty({ description: '短信类型', required: false, enum: Schema.TbSmsAppType })
+    @IsOptional()
+    @IsEnum(Schema.TbSmsAppType, { message: '短信类型格式错误' })
+    type?: Schema.TbSmsAppType
+}
 
 /** 响应：POST /app/create、POST /app/update、POST /app/select（新增客户短信应用；更新客户短信应用；获取客户短信应用下拉选项）。 */
 export class SmsAppResponseDto extends OmitType(Schema.TbSmsAppDto, ['secret'] as const) {}

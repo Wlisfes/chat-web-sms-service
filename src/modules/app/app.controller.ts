@@ -52,9 +52,9 @@ export class SmsAppController {
     }
 
     @ApiServiceDecorator(Post('select'), {
-        operation: { summary: '获取客户短信应用下拉选项' },
+        operation: { summary: '获取短信应用下拉选项' },
         request: { source: 'body', type: SmsAppDto.SelectSmsAppDto },
-        response: { type: SmsAppDto.SmsAppResponseDto, isArray: true, description: '客户短信应用列表' }
+        response: { type: SmsAppDto.SmsAppResponseDto, isArray: true, description: '短信应用列表' }
     })
     public async httpBaseSmsSelectApp(@Body() body: SmsAppDto.SelectSmsAppDto): Promise<SmsAppDto.SmsAppResponseDto[]> {
         return this.smsAppService.httpBaseSmsSelectApp(body)

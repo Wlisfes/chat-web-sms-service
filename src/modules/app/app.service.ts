@@ -150,10 +150,12 @@ export class SmsAppService {
         })
     }
 
-    /**查询客户短信应用下拉选项。*/
+    /**查询短信应用下拉选项；客户和类型都是可选过滤条件。*/
     public async httpBaseSmsSelectApp(body: SmsAppDto.SelectSmsAppDto): Promise<SmsAppDto.SmsAppResponseDto[]> {
         return this.database.builder(this.repository, async qb => {
-            const list = await qb.where('t.userKeyId = :userKeyId', { userKeyId: body.userKeyId }).orderBy('t.createTime', 'DESC').getMany()
+            if (isNotEmpty(body.userKeyId)) qb.andWhere('t.userKeyId = :userKeyId', { userKeyId: body.userKeyId })
+            if (isNotEmpty(body.type)) qb.andWhere('t.type = :type', { type: body.type })
+            const list = await qb.orderBy('t.createTime', 'DESC').getMany()
             return list.map(item => this.smsAppUtilsService.sanitize(item))
         })
     }
