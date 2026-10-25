@@ -1,6 +1,6 @@
 {
     "name": "chat-web-sms-service",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "description": "Chat Web SMS 服务",
     "author": "Wlisfes",
     "private": true,
