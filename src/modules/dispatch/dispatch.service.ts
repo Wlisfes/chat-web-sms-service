@@ -13,7 +13,7 @@ export class DispatchService {
             logId: v4(),
             userKeyId: 10241010,
             userName: '青萍科技股份有限公司',
-            appKeyId: 1,
+            appKeyId: 1002009,
             appId: 'NwlP460poQnWw1F9',
             type: 'MRKT',
             countryKeyId: 1077,
