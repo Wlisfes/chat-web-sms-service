@@ -10,7 +10,7 @@ export class DispatchService {
 
     public async fetchBaseMessageSubmit() {
         const payload: constants.MessageSubmitPayload = {
-            logId: v4(),
+            msgId: v4(),
             userKeyId: 10241010,
             userName: '青萍科技股份有限公司',
             appKeyId: 1002009,
@@ -27,9 +27,9 @@ export class DispatchService {
             price: 108200
         }
         await this.rabbitmqService.publish(constants.SMS_EXCHANGE, constants.SMS_SUBMIT_ROUTING_KEY, payload, {
-            messageId: payload.logId
+            messageId: payload.msgId
         })
-        this.logger.log(`短信已提交：logId=${payload.logId}`)
+        this.logger.log(`短信已提交：msgId=${payload.msgId}`)
         return fetchResolver({ message: 'success', payload })
     }
 }

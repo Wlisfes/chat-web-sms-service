@@ -16,7 +16,7 @@ export const SMS_SUBMIT_DEAD_ROUTING_KEY = 'sms.submit.dead'
 /**提交到通道的短信数据格式**/
 export interface MessageSubmitPayload extends Omix {
     /** 本次提交生成UUID标识，当前不落库。 */
-    logId: string
+    msgId: string
     /** 提交短信的C端客户主键ID */
     userKeyId: number
     /** 提交短信的C端客户名称 */
