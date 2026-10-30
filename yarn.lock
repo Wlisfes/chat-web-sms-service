@@ -114,6 +114,11 @@
   dependencies:
     "@jridgewell/trace-mapping" "0.3.9"
 
+"@faker-js/faker@9.9.0":
+  version "9.9.0"
+  resolved "https://registry.npmmirror.com/@faker-js/faker/-/faker-9.9.0.tgz#3ad015fbbaaae7af3149555e0f22b4b30134c69d"
+  integrity sha512-OEl393iCOoo/z8bMezRlJu+GlRGlsKbUAN7jKB6LhnKoqKve5DXRpalbItIIcwnCjs1k/FOPjFzcA6Qn+H+YbA==
+
 "@inquirer/ansi@^1.0.2":
   version "1.0.2"
   resolved "https://registry.npmmirror.com/@inquirer/ansi/-/ansi-1.0.2.tgz#674a4c4d81ad460695cb2a1fc69d78cd187f337e"
@@ -764,10 +769,10 @@
     "@webassemblyjs/ast" "1.14.1"
     "@xtuc/long" "4.2.2"
 
-"@wlisfes/chat-web-base-schema@1.7.15":
-  version "1.7.15"
-  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.7.15/b606bddaf18eb608a9c509705cf30dd5de43d311#b606bddaf18eb608a9c509705cf30dd5de43d311"
-  integrity sha512-bVhU1j3oOc/SthSlJ4OlDDN3sqVEFd8TGoHdMucCfrxKCAa1/jwd/ig/dfaA+ORAJhmvvGUu8ibeGAKhMw8NZw==
+"@wlisfes/chat-web-base-schema@1.7.28":
+  version "1.7.28"
+  resolved "https://npm.pkg.github.com/download/@wlisfes/chat-web-base-schema/1.7.28/8c92f53ed586e2d7f2e31f3b1b8f9a0c48774b01#8c92f53ed586e2d7f2e31f3b1b8f9a0c48774b01"
+  integrity sha512-m8/IxsNV4AMr1gZxCI1H7+7KNTEFTifGrUtHTuI9k0gsd0LUI7oJs3crxvWbD6yleAp3BiLnLYaXutDbOyA5jA==
   dependencies:
     "@opentelemetry/api" "^1.9.0"
     "@types/lodash" "^4.17.25"
