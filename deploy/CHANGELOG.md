@@ -1,5 +1,13 @@
 # SMS 部署变更记录
 
+## 2026-10-30：测试提交改用 21 位雪花 ID
+
+- 变更内容：升级 `@wlisfes/chat-web-base-schema` 到 `1.7.28`。测试提交的 `msgId` 改为 `snowflakeResolve` 生成的 21 位数字；接收号码和内容用 faker 生成，编码和计费条数按内容计算。
+- 机器侧操作：无需改 Nacos 或数据库。`msg_id` 仍是 `varchar(36)`，21 位数字可以写入。
+- 验证命令：`yarn test`；调用测试提交接口后，返回的 `msgId` 为 21 位数字。
+- 回滚方法：回退 SMS 镜像。已写入的短信 ID 保留。
+
+
 ## 2026-10-16（短信业务迁入）
 
 - 承接原 CRM 的客户短信应用与短信报价，新增数据库 `chat-web-sms`（`tb_sms_app`、`tb_sms_quote_draft`、`tb_sms_quote`）。
