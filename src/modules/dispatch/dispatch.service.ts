@@ -48,7 +48,9 @@ export class DispatchService {
 
     /** 纯英文数字走 GSM7，中文等内容走 UCS2，编码由内容反推。 */
     private fakeContent(): string {
-        if (this.faker.datatype.boolean()) return this.faker.string.alphanumeric({ length: { min: 8, max: 180 } })
-        return `${this.faker.person.fullName()}${this.faker.lorem.sentence()}`
+        if (this.faker.datatype.boolean()) {
+            return this.faker.lorem.sentence({ min: 5, max: 40 })
+        }
+        return `Hello ${this.faker.person.fullName()}! ${this.faker.lorem.sentence({ min: 5, max: 40 })}`
     }
 }
