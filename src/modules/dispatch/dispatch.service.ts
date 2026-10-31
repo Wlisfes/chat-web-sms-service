@@ -19,7 +19,7 @@ export class DispatchService {
             userName: '青萍科技股份有限公司',
             appKeyId: 1002009,
             appId: 'NwlP460poQnWw1F9',
-            type: 'MRKT',
+            type: this.faker.helpers.arrayElement(['MRKT', 'NTFY', 'SOTP']),
             countryKeyId: 1077,
             mcc: '460',
             toNumber: message.toNumber,
