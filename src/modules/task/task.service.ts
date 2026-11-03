@@ -6,6 +6,7 @@ import { type AuthPrincipal } from '@wlisfes/chat-web-base-schema/auth'
 import { AffectedResponseDataDto } from '@wlisfes/chat-web-base-schema/decorator'
 import { ConfigService } from '@nestjs/config'
 import { SmsAppUtilsService } from '@/modules/app/app.utils.service'
+import { SmsTaskQueueService } from '@/modules/task/task.queue.service'
 import { SmsTaskUtilsService } from '@/modules/task/task.utils.service'
 import * as SmsTaskDto from '@/modules/task/dto/task.dto'
 import * as Schema from '@wlisfes/chat-web-base-schema'
@@ -16,6 +17,7 @@ export class SmsTaskService {
         @InjectRepository(Schema.TbSmsTask) private readonly repository: Repository<Schema.TbSmsTask>,
         private readonly database: DataBaseService,
         private readonly smsTaskUtilsService: SmsTaskUtilsService,
+        private readonly smsTaskQueueService: SmsTaskQueueService,
         private readonly smsAppUtilsService: SmsAppUtilsService,
         private readonly crmClient: FeignClientCrmManager,
         private readonly configService: ConfigService
@@ -72,7 +74,9 @@ export class SmsTaskService {
             createBy: principal.uid,
             modifyBy: principal.uid
         })
-        return this.repository.save(task)
+        const saved = await this.repository.save(task)
+        await this.smsTaskQueueService.enqueueAfterSave(saved)
+        return saved
     }
 
     /** 更新待发送任务。只有未到发送时间时才能改计划时间，并递增版本号。 */
@@ -80,7 +84,7 @@ export class SmsTaskService {
         principal: AuthPrincipal,
         body: SmsTaskDto.UpdateSmsTaskDto
     ): Promise<SmsTaskDto.SmsTaskResponseDto> {
-        return this.repository.manager.transaction(async manager => {
+        const saved = await this.repository.manager.transaction(async manager => {
             const task = await this.smsTaskUtilsService.findRequired(body.keyId, manager)
             this.smsTaskUtilsService.assertPending(task)
             this.smsTaskUtilsService.assertVersion(task, body.version)
@@ -95,6 +99,8 @@ export class SmsTaskService {
             manager.merge(Schema.TbSmsTask, task, { ...changes, modifyBy: principal.uid })
             return manager.save(task)
         })
+        await this.smsTaskQueueService.enqueueAfterSave(saved)
+        return saved
     }
 
     /** 查询短信任务详情。 */

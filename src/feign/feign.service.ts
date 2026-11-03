@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { SmsTaskQueueService } from '@/modules/task/task.queue.service'
 import * as Schema from '@wlisfes/chat-web-base-schema'
 import { In, InjectRepository, Repository } from '@wlisfes/chat-web-base-schema/database'
 import * as FeignSchema from '@wlisfes/chat-web-base-schema/feign'
@@ -6,7 +7,10 @@ import * as FeignSchema from '@wlisfes/chat-web-base-schema/feign'
 /** SMS 服务对内 Feign 接口实现；凭据由共享客户端在分发前校验。 */
 @Injectable()
 export class FeignService implements FeignSchema.FeignClientSmsImplementation {
-    constructor(@InjectRepository(Schema.TbSmsApp) private readonly appRepository: Repository<Schema.TbSmsApp>) {}
+    constructor(
+        @InjectRepository(Schema.TbSmsApp) private readonly appRepository: Repository<Schema.TbSmsApp>,
+        private readonly smsTaskQueueService: SmsTaskQueueService
+    ) {}
 
     /**按客户主键统计短信应用数量**/
     public async httpBaseSmsAppCountResolver(
@@ -28,5 +32,13 @@ export class FeignService implements FeignSchema.FeignClientSmsImplementation {
             select: { keyId: true, userKeyId: true, appId: true, appName: true, appAlias: true, type: true, status: true },
             where: { keyId: In(keyIds) }
         })
+    }
+
+    /**扫描进入发送窗口的待发送任务并推入短信任务队列。**/
+    public async httpBaseSmsTaskEnqueue(
+        _authorization: string,
+        _input: FeignSchema.SmsTaskEnqueueInput
+    ): Promise<FeignSchema.SmsTaskEnqueueResult> {
+        return this.smsTaskQueueService.enqueueDue()
     }
 }
