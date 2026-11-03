@@ -14,6 +14,7 @@ import { AppController } from '@/app.controller'
 import { AppService } from '@/app.service'
 import { FeignModule } from '@/feign/feign.module'
 import { SmsAppModule } from '@/modules/app/app.module'
+import { SmsTaskModule } from '@/modules/task/task.module'
 
 @Module({
     imports: [
@@ -25,6 +26,7 @@ import { SmsAppModule } from '@/modules/app/app.module'
         GatewayPrincipalModule,
         AuthorizationModule,
         SmsAppModule,
+        SmsTaskModule,
         DispatchModule,
         SmsQuoteModule,
         FeignModule
