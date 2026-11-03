@@ -5,6 +5,7 @@ import { RabbitmqModule } from '@wlisfes/chat-web-base-schema/rabbitmq'
 import { SMS_RABBITMQ_VHOST } from '@/modules/dispatch/dispatch.constants'
 import { DispatchModule } from '@/modules/dispatch/dispatch.module'
 import { setupSmsTopology } from '@/modules/dispatch/dispatch.topology'
+import { setupSmsTaskTopology } from '@/modules/task/task.topology'
 import { SmsQuoteModule } from '@/modules/quote/quote.module'
 import { DatabaseModule } from '@/database/database.module'
 import { Logger, Module } from '@nestjs/common'
@@ -14,6 +15,7 @@ import { AppController } from '@/app.controller'
 import { AppService } from '@/app.service'
 import { FeignModule } from '@/feign/feign.module'
 import { SmsAppModule } from '@/modules/app/app.module'
+import { SmsTaskModule } from '@/modules/task/task.module'
 
 @Module({
     imports: [
@@ -21,10 +23,17 @@ import { SmsAppModule } from '@/modules/app/app.module'
         ConfigModule.forRoot({ isGlobal: true }),
         NacosModule.forRoot(forRootNacosRuntimeOptions(process.env)),
         DatabaseModule,
-        RabbitmqModule.forRoot({ vhost: SMS_RABBITMQ_VHOST, setup: setupSmsTopology }),
+        RabbitmqModule.forRoot({
+            vhost: SMS_RABBITMQ_VHOST,
+            setup: async channel => {
+                await setupSmsTopology(channel)
+                await setupSmsTaskTopology(channel)
+            }
+        }),
         GatewayPrincipalModule,
         AuthorizationModule,
         SmsAppModule,
+        SmsTaskModule,
         DispatchModule,
         SmsQuoteModule,
         FeignModule
