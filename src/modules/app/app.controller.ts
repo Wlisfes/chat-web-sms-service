@@ -42,6 +42,39 @@ export class SmsAppController {
         return this.smsAppService.httpBaseSmsUpdateApp(principal, body)
     }
 
+    @ApiServiceDecorator(Post('mine/create'), {
+        operation: { summary: '当前登录客户新增短信应用' },
+        request: { source: 'body', type: SmsAppDto.CreateMineSmsAppDto },
+        response: { type: SmsAppDto.SmsAppResponseDto, description: '新增后的短信应用，不返回应用密钥' }
+    })
+    public async httpBaseSmsCreateMineApp(
+        @CurrentPrincipal() principal: AuthPrincipal,
+        @Body() body: SmsAppDto.CreateMineSmsAppDto
+    ): Promise<SmsAppDto.SmsAppResponseDto> {
+        return this.smsAppService.httpBaseSmsCreateMineApp(principal, body)
+    }
+
+    @ApiServiceDecorator(Post('mine/update'), {
+        operation: { summary: '当前登录客户更新自己的短信应用' },
+        request: { source: 'body', type: SmsAppDto.UpdateMineSmsAppDto },
+        response: { type: SmsAppDto.SmsAppResponseDto, description: '更新后的短信应用，不返回应用密钥' }
+    })
+    public async httpBaseSmsUpdateMineApp(
+        @CurrentPrincipal() principal: AuthPrincipal,
+        @Body() body: SmsAppDto.UpdateMineSmsAppDto
+    ): Promise<SmsAppDto.SmsAppResponseDto> {
+        return this.smsAppService.httpBaseSmsUpdateMineApp(principal, body)
+    }
+
+    @ApiServiceDecorator(Post('mine/column'), {
+        operation: { summary: '当前登录客户分页查询自己的短信应用' },
+        request: { source: 'body', type: SmsAppDto.ListMineSmsAppDto },
+        response: { type: SmsAppDto.SmsAppPageResponseDto, description: '当前客户的短信应用分页数据' }
+    })
+    public async httpBaseSmsColumnMineApp(@CurrentPrincipal() principal: AuthPrincipal, @Body() body: SmsAppDto.ListMineSmsAppDto) {
+        return this.smsAppService.httpBaseSmsColumnMineApp(principal, body)
+    }
+
     @ApiServiceDecorator(Post('column'), {
         operation: { summary: '分页查询客户短信应用' },
         request: { source: 'body', type: SmsAppDto.ListSmsAppDto },

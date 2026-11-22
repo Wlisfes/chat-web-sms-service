@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger } from '@nestjs/common'
+import { ConflictException, ForbiddenException, Injectable, Logger } from '@nestjs/common'
 import { InjectRepository, DataBaseService, Repository } from '@wlisfes/chat-web-base-schema/database'
 import { FeignClientCrmManager, resolveFeignServiceAuthorization } from '@wlisfes/chat-web-base-schema/feign'
 import { PageResult, isNotEmpty } from '@wlisfes/chat-web-base-schema/utils'
@@ -122,6 +122,40 @@ export class SmsAppService {
         })
         this.logger.log(`重置短信应用密钥 uid=${principal.uid} keyId=${app.keyId} appId=${app.appId}`)
         return { appId: app.appId, secret }
+    }
+
+    /** 当前登录客户新增短信应用。客户主键取网关身份 uid，不接收前端传入的 userKeyId。 */
+    public async httpBaseSmsCreateMineApp(principal: AuthPrincipal, body: SmsAppDto.CreateMineSmsAppDto): Promise<SmsAppDto.SmsAppResponseDto> {
+        return this.httpBaseSmsCreateApp(principal, { ...body, userKeyId: this.resolveCustomerKeyId(principal) })
+    }
+
+    /** 当前登录客户更新自己的短信应用。 */
+    public async httpBaseSmsUpdateMineApp(principal: AuthPrincipal, body: SmsAppDto.UpdateMineSmsAppDto): Promise<SmsAppDto.SmsAppResponseDto> {
+        await this.assertCustomerApp(principal, body.keyId)
+        return this.httpBaseSmsUpdateApp(principal, body)
+    }
+
+    /** 当前登录客户分页查询自己的短信应用。 */
+    public async httpBaseSmsColumnMineApp(principal: AuthPrincipal, body: SmsAppDto.ListMineSmsAppDto): Promise<PageResult<SmsAppDto.SmsAppResponseDto>> {
+        return this.httpBaseSmsColumnApp({ ...body, userKeyId: this.resolveCustomerKeyId(principal) })
+    }
+
+    /** 网关把 C 端客户主键放在 uid。 */
+    private resolveCustomerKeyId(principal: AuthPrincipal): number {
+        const userKeyId = Number(principal.uid)
+        if (!Number.isInteger(userKeyId) || userKeyId < 1) {
+            throw new ForbiddenException('当前登录客户无效')
+        }
+        return userKeyId
+    }
+
+    /** 更新前确认应用属于当前客户，避免用主键改到其他客户的应用。 */
+    private async assertCustomerApp(principal: AuthPrincipal, keyId: number): Promise<void> {
+        const userKeyId = this.resolveCustomerKeyId(principal)
+        const app = await this.smsAppUtilsService.findRequired(keyId)
+        if (app.userKeyId !== userKeyId) {
+            throw new ForbiddenException('无权操作该短信应用')
+        }
     }
 
     /**分页查询客户短信应用。*/

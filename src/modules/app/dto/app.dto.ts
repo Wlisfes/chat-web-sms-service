@@ -50,6 +50,21 @@ export class SelectSmsAppDto {
     type?: Schema.TbSmsAppType
 }
 
+/** 当前登录客户新增短信应用入参：POST /app/mine/create。客户主键从网关身份解析，不接收 userKeyId。 */
+export class CreateMineSmsAppDto extends IntersectionType(
+    PickType(Schema.TbSmsAppDto, ['type'] as const),
+    PartialType(PickType(Schema.TbSmsAppDto, ['pushUrl', 'remark'] as const))
+) {}
+
+/** 当前登录客户更新短信应用入参：POST /app/mine/update。 */
+export class UpdateMineSmsAppDto extends UpdateSmsAppDto {}
+
+/** 当前登录客户分页查询短信应用入参：POST /app/mine/column。 */
+export class ListMineSmsAppDto extends IntersectionType(
+    PageDto,
+    PartialType(PickType(Schema.TbSmsAppDto, ['appId', 'appAlias', 'status', 'type'] as const))
+) {}
+
 /** 响应：POST /app/create、POST /app/update、POST /app/select（新增客户短信应用；更新客户短信应用；获取客户短信应用下拉选项）。 */
 export class SmsAppResponseDto extends OmitType(Schema.TbSmsAppDto, ['secret'] as const) {}
 
