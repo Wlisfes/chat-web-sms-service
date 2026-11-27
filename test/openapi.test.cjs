@@ -11,7 +11,8 @@ const { HttpExceptionFilter } = require('@wlisfes/chat-web-base-schema/filters')
 
 const controllers = [
     require('../dist/modules/app/app.controller').SmsAppController,
-    require('../dist/modules/quote/quote.controller').SmsQuoteController
+    require('../dist/modules/quote/quote.controller').SmsQuoteController,
+    require('../dist/modules/template/template.controller').SmsTemplateController
 ]
 
 function assertTypedSchema(schema, label) {
@@ -44,7 +45,12 @@ async function createDocument() {
 
 test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
     const document = await createDocument()
-    const pageSchemas = { SmsAppPageResponseDto: [], SmsQuoteDraftPageResponseDto: ['summary'], SmsQuotePageResponseDto: [] }
+    const pageSchemas = {
+        SmsAppPageResponseDto: [],
+        SmsQuoteDraftPageResponseDto: ['summary'],
+        SmsQuotePageResponseDto: [],
+        SmsTemplatePageResponseDto: []
+    }
     for (const [schemaName, extra] of Object.entries(pageSchemas)) {
         const properties = document.components.schemas?.[schemaName]?.properties ?? {}
         assert.deepEqual(Object.keys(properties).sort(), ['list', 'page', 'size', 'total', ...extra].sort())
@@ -57,8 +63,8 @@ test('OpenAPI 请求和响应包含完整字段类型与示例', async () => {
             .map(([method, operation]) => ({ path, method, operation }))
     )
 
-    assert.equal(operations.length, 15)
-    assert.equal(operations.filter(({ operation }) => operation.requestBody).length, 13)
+    assert.equal(operations.length, 24)
+    assert.equal(operations.filter(({ operation }) => operation.requestBody).length, 21)
     assert.equal(operations.flatMap(({ operation }) => operation.parameters ?? []).filter(parameter => parameter.in === 'query').length, 0)
 
     for (const { path, method, operation } of operations) {

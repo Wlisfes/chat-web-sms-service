@@ -1,5 +1,14 @@
 # SMS 部署变更记录
 
+## 2026-11-27：新增客户短信模板
+
+- 影响机器：`chat-home-server`。
+- 变更内容：新增 `tb_sms_template`，客户侧接口为 `GET /template/enums`、`POST /template/mine/{create,update,column,select,delete}`。模板类型跟随短信应用，新建和修改后进入待审核；已通过或已禁用的模板不能修改或删除。审核状态含待审核、已通过、未通过、已禁用，只有已通过的模板可以发送。
+- 依赖：包含 `20261127231000__tb_sms_template__create.sql` 的 `@wlisfes/chat-web-base-schema`。
+- 机器侧操作：部署时 apply-schema 自动建表。无需修改 `.env` 与 Nacos。
+- 验证命令：`yarn test`；登录后 `POST /api/sms/template/mine/column` 返回当前客户的模板分页。
+- 回滚方法：回退本服务镜像；`tb_sms_template` 可保留，确认无调用后手动删除。
+
 ## 2026-10-30：测试提交改用 21 位雪花 ID
 
 - 变更内容：升级 `@wlisfes/chat-web-base-schema` 到 `1.7.28`。测试提交的 `msgId` 改为 `snowflakeResolve` 生成的 21 位数字；接收号码和内容用 faker 生成，编码和计费条数按内容计算。
