@@ -65,8 +65,22 @@ export class ListMineSmsAppDto extends IntersectionType(
     PartialType(PickType(Schema.TbSmsAppDto, ['appId', 'appAlias', 'status', 'type'] as const))
 ) {}
 
-/** 响应：POST /app/create、POST /app/update、POST /app/select（新增客户短信应用；更新客户短信应用；获取客户短信应用下拉选项）。 */
+/** 当前登录客户查询短信应用下拉入参：POST /app/mine/select。客户主键从网关身份解析。 */
+export class SelectMineSmsAppDto extends PartialType(PickType(Schema.TbSmsAppDto, ['status', 'type'] as const)) {}
+
+/** 响应：POST /app/create、POST /app/update（新增客户短信应用；更新客户短信应用）。 */
 export class SmsAppResponseDto extends OmitType(Schema.TbSmsAppDto, ['secret'] as const) {}
+
+/** 短信应用下拉响应：POST /app/select、POST /app/mine/select。 */
+export class SmsAppSelectResponseDto extends PickType(Schema.TbSmsAppDto, [
+    'keyId',
+    'userKeyId',
+    'appId',
+    'appName',
+    'status',
+    'type',
+    'pushUrl'
+] as const) {}
 
 /** 分页查询客户短信应用响应：POST /app/column。 */
 export class SmsAppPageResponseDto extends PageResponseDataDto {

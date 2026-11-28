@@ -125,19 +125,36 @@ export class SmsAppService {
     }
 
     /** 当前登录客户新增短信应用。客户主键取网关身份 uid，不接收前端传入的 userKeyId。 */
-    public async httpBaseSmsCreateMineApp(principal: AuthPrincipal, body: SmsAppDto.CreateMineSmsAppDto): Promise<SmsAppDto.SmsAppResponseDto> {
+    public async httpBaseSmsCreateMineApp(
+        principal: AuthPrincipal,
+        body: SmsAppDto.CreateMineSmsAppDto
+    ): Promise<SmsAppDto.SmsAppResponseDto> {
         return this.httpBaseSmsCreateApp(principal, { ...body, userKeyId: this.resolveCustomerKeyId(principal) })
     }
 
     /** 当前登录客户更新自己的短信应用。 */
-    public async httpBaseSmsUpdateMineApp(principal: AuthPrincipal, body: SmsAppDto.UpdateMineSmsAppDto): Promise<SmsAppDto.SmsAppResponseDto> {
+    public async httpBaseSmsUpdateMineApp(
+        principal: AuthPrincipal,
+        body: SmsAppDto.UpdateMineSmsAppDto
+    ): Promise<SmsAppDto.SmsAppResponseDto> {
         await this.assertCustomerApp(principal, body.keyId)
         return this.httpBaseSmsUpdateApp(principal, body)
     }
 
     /** 当前登录客户分页查询自己的短信应用。 */
-    public async httpBaseSmsColumnMineApp(principal: AuthPrincipal, body: SmsAppDto.ListMineSmsAppDto): Promise<PageResult<SmsAppDto.SmsAppResponseDto>> {
+    public async httpBaseSmsColumnMineApp(
+        principal: AuthPrincipal,
+        body: SmsAppDto.ListMineSmsAppDto
+    ): Promise<PageResult<SmsAppDto.SmsAppResponseDto>> {
         return this.httpBaseSmsColumnApp({ ...body, userKeyId: this.resolveCustomerKeyId(principal) })
+    }
+
+    /** 当前登录客户查询自己的短信应用下拉。客户主键从网关身份解析，不接收 userKeyId。 */
+    public async httpBaseSmsSelectMineApp(
+        principal: AuthPrincipal,
+        body: SmsAppDto.SelectMineSmsAppDto
+    ): Promise<SmsAppDto.SmsAppSelectResponseDto[]> {
+        return this.httpBaseSmsSelectApp({ ...body, userKeyId: this.resolveCustomerKeyId(principal) })
     }
 
     /** 网关把 C 端客户主键放在 uid。 */
@@ -177,20 +194,25 @@ export class SmsAppService {
                 qb.andWhere('t.type = :type', { type: body.type })
             }
             qb.orderBy('t.createTime', 'DESC')
-                .skip((body.page - 1) * body.size)
-                .take(body.size)
-            const [list, total] = await qb.getManyAndCount()
-            return { page: body.page, size: body.size, total, list: list.map(item => this.smsAppUtilsService.sanitize(item)) }
+            qb.skip((body.page - 1) * body.size)
+            qb.take(body.size)
+            return await qb.getManyAndCount().then(async ([list, total]) => {
+                return { page: body.page, size: body.size, total, list: list.map(item => this.smsAppUtilsService.sanitize(item)) }
+            })
         })
     }
 
     /**查询短信应用下拉选项；客户和类型都是可选过滤条件。*/
-    public async httpBaseSmsSelectApp(body: SmsAppDto.SelectSmsAppDto): Promise<SmsAppDto.SmsAppResponseDto[]> {
+    public async httpBaseSmsSelectApp(body: SmsAppDto.SelectSmsAppDto): Promise<SmsAppDto.SmsAppSelectResponseDto[]> {
         return this.database.builder(this.repository, async qb => {
-            if (isNotEmpty(body.userKeyId)) qb.andWhere('t.userKeyId = :userKeyId', { userKeyId: body.userKeyId })
-            if (isNotEmpty(body.type)) qb.andWhere('t.type = :type', { type: body.type })
-            const list = await qb.orderBy('t.createTime', 'DESC').getMany()
-            return list.map(item => this.smsAppUtilsService.sanitize(item))
+            qb.select(['t.keyId', 't.userKeyId', 't.appId', 't.appName', 't.status', 't.type', 't.pushUrl'])
+            if (isNotEmpty(body.userKeyId)) {
+                qb.andWhere('t.userKeyId = :userKeyId', { userKeyId: body.userKeyId })
+            }
+            if (isNotEmpty(body.type)) {
+                qb.andWhere('t.type = :type', { type: body.type })
+            }
+            return await qb.orderBy('t.createTime', 'DESC').getMany()
         })
     }
 }

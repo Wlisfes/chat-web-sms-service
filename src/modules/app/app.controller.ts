@@ -75,6 +75,18 @@ export class SmsAppController {
         return this.smsAppService.httpBaseSmsColumnMineApp(principal, body)
     }
 
+    @ApiServiceDecorator(Post('mine/select'), {
+        operation: { summary: '当前登录客户查询自己的短信应用下拉' },
+        request: { source: 'body', type: SmsAppDto.SelectMineSmsAppDto },
+        response: { type: SmsAppDto.SmsAppSelectResponseDto, isArray: true, description: '当前客户的短信应用列表' }
+    })
+    public async httpBaseSmsSelectMineApp(
+        @CurrentPrincipal() principal: AuthPrincipal,
+        @Body() body: SmsAppDto.SelectMineSmsAppDto
+    ): Promise<SmsAppDto.SmsAppSelectResponseDto[]> {
+        return this.smsAppService.httpBaseSmsSelectMineApp(principal, body)
+    }
+
     @ApiServiceDecorator(Post('column'), {
         operation: { summary: '分页查询客户短信应用' },
         request: { source: 'body', type: SmsAppDto.ListSmsAppDto },
@@ -87,9 +99,9 @@ export class SmsAppController {
     @ApiServiceDecorator(Post('select'), {
         operation: { summary: '获取短信应用下拉选项' },
         request: { source: 'body', type: SmsAppDto.SelectSmsAppDto },
-        response: { type: SmsAppDto.SmsAppResponseDto, isArray: true, description: '短信应用列表' }
+        response: { type: SmsAppDto.SmsAppSelectResponseDto, isArray: true, description: '短信应用列表' }
     })
-    public async httpBaseSmsSelectApp(@Body() body: SmsAppDto.SelectSmsAppDto): Promise<SmsAppDto.SmsAppResponseDto[]> {
+    public async httpBaseSmsSelectApp(@Body() body: SmsAppDto.SelectSmsAppDto): Promise<SmsAppDto.SmsAppSelectResponseDto[]> {
         return this.smsAppService.httpBaseSmsSelectApp(body)
     }
 
