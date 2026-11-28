@@ -12,10 +12,10 @@ export class SmsTemplateEnumsResponseDto extends EnumsResponseDto({
 }) {}
 
 /** 当前登录客户新增短信模板入参：POST /template/mine/create。客户主键从网关身份解析。 */
-export class CreateMineSmsTemplateDto extends PickType(Schema.TbSmsTemplateDto, ['appKeyId', 'templateName', 'content'] as const) {}
+export class CreateMineSmsTemplateDto extends PickType(Schema.TbSmsTemplateDto, ['appKeyId', 'templateName', 'content', 'htmlContent'] as const) {}
 
 /** 当前登录客户更新短信模板入参：POST /template/mine/update。已通过的模板不能修改。 */
-export class UpdateMineSmsTemplateDto extends PickType(Schema.TbSmsTemplateDto, ['keyId', 'templateName', 'content'] as const) {}
+export class UpdateMineSmsTemplateDto extends PickType(Schema.TbSmsTemplateDto, ['keyId', 'templateName', 'content', 'htmlContent'] as const) {}
 
 /** 当前登录客户分页查询短信模板入参：POST /template/mine/column。 */
 export class ListMineSmsTemplateDto extends IntersectionType(

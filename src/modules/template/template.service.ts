@@ -48,7 +48,8 @@ export class SmsTemplateService {
                 templateName: body.templateName.trim(),
                 type: app.type,
                 audit: Schema.TbSmsTemplateAudit.PENDING,
-                content: body.content.trim(),
+                content: body.content,
+                htmlContent: body.htmlContent,
                 createBy: principal.uid,
                 modifyBy: principal.uid
             })
@@ -88,7 +89,8 @@ export class SmsTemplateService {
             }
             manager.merge(Schema.TbSmsTemplate, template, {
                 templateName: body.templateName.trim(),
-                content: body.content.trim(),
+                content: body.content,
+                htmlContent: body.htmlContent,
                 audit: Schema.TbSmsTemplateAudit.PENDING,
                 rejectReason: null,
                 modifyBy: principal.uid
